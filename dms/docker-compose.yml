@@ -1,0 +1,42 @@
+services:
+
+  mysql:
+    image: mysql:8.0
+    container_name: dms_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: dms_db
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3306:3306"          # remove this if you don't need to reach MySQL from outside the host
+    volumes:
+      - dms_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: dms_app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/dms_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=Asia/Kolkata
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      APP_FRONTEND_BASE_URL: ${APP_FRONTEND_BASE_URL:-http://localhost:8080}
+    ports:
+      - "8080:8080"
+    volumes:
+      - dms_uploads:/app/uploads   # persists payment proofs / product images / company logo across restarts & redeploys
+
+volumes:
+  dms_mysql_data:
+  dms_uploads:

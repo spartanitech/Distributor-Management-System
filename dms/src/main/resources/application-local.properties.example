@@ -1,0 +1,46 @@
+# Copy this file to "application-local.properties" (same folder), fill in
+# real values, then run with:
+#   --spring.profiles.active=local
+# or set SPRING_PROFILES_ACTIVE=local as an environment variable.
+#
+# IMPORTANT: this is a SPRING PROPERTIES file, so it must use real Spring
+# property keys (spring.datasource.url), NOT environment-variable names
+# (DB_URL). An earlier version of this example used the env-var names,
+# which only worked by accident and made it easy to end up with a blank
+# datasource URL -- the exact cause of:
+#   "Failed to configure a DataSource: 'url' attribute is not specified"
+#
+# If you would rather use environment variables instead of this file,
+# don't copy this file at all -- application.properties already reads
+# DB_URL / DB_USERNAME / DB_PASSWORD / MAIL_USERNAME / MAIL_PASSWORD via
+# ${VAR:default}. But note: ${VAR:default} only falls back to the default
+# when the variable is ABSENT. If the variable EXISTS but is empty (e.g.
+# `set DB_URL=` on Windows), Spring uses the empty value and startup fails
+# with the error above. Unset it entirely rather than setting it blank.
+
+spring.datasource.url=jdbc:mysql://localhost:3306/dms_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=Asia/Kolkata
+spring.datasource.username=root
+spring.datasource.password=your_real_db_password_here
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=your_real_gmail_address_here
+spring.mail.password=your_16_char_app_password_here
+
+# JWT_SECRET is required (no default/fallback is compiled into the app --
+# see BUG-C3). Set this to your OWN random value, at least 32 characters,
+# even for local dev -- the app will refuse to start otherwise. Generate one
+# with, e.g.:
+#   openssl rand -base64 48
+# This is a Spring property file, so if you're setting it here (rather than
+# as a real OS environment variable) use the property key below:
+JWT_SECRET=replace_with_a_random_32plus_character_value_generated_locally
+
+# BUG-M10: application.properties disables Swagger UI / OpenAPI docs by
+# default (springdoc.*.enabled=false) so they're never reachable outside
+# local/dev. This override re-enables them for local development -- only
+# takes effect when running with --spring.profiles.active=local (which also
+# activates SwaggerConfig's @Profile({"local","dev"}) OpenAPI bean).
+springdoc.api-docs.enabled=true
+springdoc.swagger-ui.enabled=true

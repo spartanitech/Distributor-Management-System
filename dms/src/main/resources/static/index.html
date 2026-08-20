@@ -1,0 +1,2896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brisk DMS | Distributor Management System</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+    <!-- Custom -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================== LOADING SPINNER ===================== -->
+<div id="globalSpinner" class="global-spinner d-none">
+    <div class="spinner-box">
+        <div class="spinner-border" role="status"></div>
+        <p>Please wait...</p>
+    </div>
+</div>
+
+<!-- ===================== TOAST CONTAINER ===================== -->
+<div class="toast-container position-fixed top-0 end-0 p-3" id="toastContainer" style="z-index: 2000;"></div>
+
+<!-- ===================== CONFIRM DIALOG ===================== -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-600" id="confirmTitle">Confirm Action</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="confirmBody">Are you sure?</div>
+            <div class="modal-footer border-0">
+                <button class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-danger-soft" id="confirmActionBtn">Yes, Continue</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== AUTH SCREENS ===================== -->
+<div id="authWrapper" class="auth-wrapper">
+
+    <!-- Signature moment: a live-feeling distributor network scene — warehouse hub,
+         shop nodes, and delivery routes with pulses of stock moving along them. -->
+    <div class="auth-scene" aria-hidden="true">
+        <svg class="network-svg" viewBox="0 0 760 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <radialGradient id="hubGlow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.55"/>
+                    <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+                </radialGradient>
+            </defs>
+
+            <!-- routes: hub -> each node -->
+            <g class="route-lines" fill="none" stroke-width="1.4">
+                <path id="route1" class="route" d="M380,430 C300,320 220,260 130,160"/>
+                <path id="route2" class="route" d="M380,430 C480,300 560,220 640,120"/>
+                <path id="route3" class="route" d="M380,430 C270,470 160,510 90,560"/>
+                <path id="route4" class="route" d="M380,430 C500,480 600,530 670,610"/>
+                <path id="route5" class="route" d="M380,430 C340,560 300,680 250,780"/>
+                <path id="route6" class="route" d="M380,430 C440,570 500,690 560,790"/>
+            </g>
+
+            <!-- warehouse hub -->
+            <circle cx="380" cy="430" r="70" fill="url(#hubGlow)"/>
+            <circle class="node hub" cx="380" cy="430" r="15"/>
+            <g class="node-icon" transform="translate(380,430)">
+                <path d="M-8,-3 L0,-9 L8,-3 L8,8 L-8,8 Z" fill="none" stroke="var(--bg-soft)" stroke-width="1.4"/>
+            </g>
+
+            <!-- shop / distributor nodes -->
+            <circle class="node shop" cx="130" cy="160" r="7"/>
+            <circle class="node shop" cx="640" cy="120" r="7"/>
+            <circle class="node shop" cx="90" cy="560" r="7"/>
+            <circle class="node shop" cx="670" cy="610" r="7"/>
+            <circle class="node shop" cx="250" cy="780" r="7"/>
+            <circle class="node shop" cx="560" cy="790" r="7"/>
+
+            <!-- traveling stock pulses -->
+            <circle class="pulse" r="3.2"><animateMotion dur="4.5s" repeatCount="indefinite" path="M380,430 C300,320 220,260 130,160"/></circle>
+            <circle class="pulse" r="3.2"><animateMotion dur="5.2s" begin="0.6s" repeatCount="indefinite" path="M380,430 C480,300 560,220 640,120"/></circle>
+            <circle class="pulse" r="3.2"><animateMotion dur="4.8s" begin="1.1s" repeatCount="indefinite" path="M380,430 C270,470 160,510 90,560"/></circle>
+            <circle class="pulse" r="3.2"><animateMotion dur="5.6s" begin="0.3s" repeatCount="indefinite" path="M380,430 C500,480 600,530 670,610"/></circle>
+            <circle class="pulse" r="3.2"><animateMotion dur="5s" begin="1.4s" repeatCount="indefinite" path="M380,430 C340,560 300,680 250,780"/></circle>
+            <circle class="pulse" r="3.2"><animateMotion dur="4.6s" begin="0.9s" repeatCount="indefinite" path="M380,430 C440,570 500,690 560,790"/></circle>
+        </svg>
+    </div>
+
+    <div class="auth-card glass-card">
+        <!-- FORM PANEL -->
+        <div class="auth-form-panel">
+            <div class="auth-brand">
+                <h2>Spartan Capit<span>DMS</span></h2>
+                <p>Distributor Management System</p>
+            </div>
+
+            <!-- ROLE TABS: cosmetic front door for the two separate login
+                 experiences. The backend has one /auth/login endpoint and
+                 returns the account's real role — this just (a) sets the
+                 expectation up front and (b) is checked against the
+                 response so an Admin can't land in the Distributor portal
+                 and vice versa. -->
+            <div class="role-tabs" id="roleTabs" role="tablist">
+                <button type="button" class="role-tab active" data-role="ADMIN" role="tab" aria-selected="true">
+                    <i class="fa-solid fa-user-shield"></i> Admin
+                </button>
+                <button type="button" class="role-tab" data-role="SUPER_STOCKIST" role="tab" aria-selected="false">
+                    <i class="fa-solid fa-building-shield"></i> Super Stockist
+                </button>
+                <button type="button" class="role-tab" data-role="DISTRIBUTOR" role="tab" aria-selected="false">
+                    <i class="fa-solid fa-truck-field"></i> Distributor
+                </button>
+            </div>
+
+            <!-- LOGIN FORM -->
+            <form id="loginForm" class="auth-form">
+                <h4 class="form-title" id="loginTitle">Admin console</h4>
+                <p class="form-sub" id="loginSub">Sign in with your admin credentials</p>
+
+                <div class="input-floating mb-3">
+                    <i class="fa-solid fa-user input-icon"></i>
+                    <input type="text" class="form-control" id="loginUsername" placeholder="Username" required>
+                </div>
+                <div class="input-floating mb-2">
+                    <i class="fa-solid fa-lock input-icon"></i>
+                    <input type="password" class="form-control" id="loginPassword" placeholder="Password" required>
+                    <i class="fa-solid fa-eye toggle-eye" data-target="loginPassword"></i>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="rememberMe">
+                        <label class="form-check-label small" for="rememberMe">Remember me</label>
+                    </div>
+                    <a href="#" class="small link-soft" id="showForgotPassword">Forgot password?</a>
+                </div>
+                <button type="submit" class="btn btn-gradient w-100">Sign In <i class="fa-solid fa-arrow-right ms-1"></i></button>
+
+                <p class="switch-text">Don't have an account? <a href="#" id="showRegister">Create one</a></p>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== REGISTER POPUP ===================== -->
+<div class="modal fade" id="registerModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-0">
+                <div>
+                    <h5 class="modal-title fw-600 mb-0">Create account</h5>
+                    <p class="form-sub mb-0">Set up access to the Brisk DMS platform</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- REGISTER FORM -->
+                <form id="registerForm" class="auth-form">
+                    <div class="input-floating mb-2">
+                        <i class="fa-solid fa-sitemap input-icon"></i>
+                        <select class="form-control" id="regRequestedRole">
+                            <option value="DISTRIBUTOR">Register as Distributor</option>
+                            <option value="SUPER_STOCKIST">Register as Super Stockist</option>
+                        </select>
+                    </div>
+                    <div class="input-floating mb-2">
+                        <i class="fa-solid fa-id-card input-icon"></i>
+                        <input type="text" class="form-control" id="regFullName" placeholder="Full Name" required>
+                    </div>
+                    <div class="input-floating mb-2">
+                        <i class="fa-solid fa-user input-icon"></i>
+                        <input type="text" class="form-control" id="regUsername" placeholder="Username" required>
+                    </div>
+                    <div class="input-floating mb-2">
+                        <i class="fa-solid fa-envelope input-icon"></i>
+                        <input type="email" class="form-control" id="regEmail" placeholder="Email Address" required>
+                    </div>
+                    <div class="input-floating mb-2">
+                        <i class="fa-solid fa-phone input-icon"></i>
+                        <input type="tel" class="form-control" id="regPhone" placeholder="Phone Number" required>
+                    </div>
+                    <div class="input-floating mb-2">
+                        <i class="fa-solid fa-lock input-icon"></i>
+                        <input type="password" class="form-control" id="regPassword" placeholder="Password" required>
+                        <i class="fa-solid fa-eye toggle-eye" data-target="regPassword"></i>
+                    </div>
+                    <div class="input-floating mb-3">
+                        <i class="fa-solid fa-lock input-icon"></i>
+                        <input type="password" class="form-control" id="regConfirmPassword" placeholder="Confirm Password" required>
+                        <i class="fa-solid fa-eye toggle-eye" data-target="regConfirmPassword"></i>
+                    </div>
+
+                    <button type="submit" class="btn btn-gradient w-100">Create Account <i class="fa-solid fa-user-plus ms-1"></i></button>
+
+                    <p class="switch-text mb-0">Already registered? <a href="#" id="showLogin">Sign in</a></p>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== FORGOT PASSWORD POPUP ===================== -->
+<div class="modal fade" id="forgotPasswordModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-0">
+                <div>
+                    <h5 class="modal-title fw-600 mb-0">Reset password</h5>
+                    <p class="form-sub mb-0">We'll send a reset link to your email</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="forgotPasswordForm" class="auth-form">
+                    <div class="input-floating mb-3">
+                        <i class="fa-solid fa-envelope input-icon"></i>
+                        <input type="email" class="form-control" id="forgotEmail" placeholder="Registered Email Address" required>
+                    </div>
+                    <button type="submit" class="btn btn-gradient w-100">Send Reset Link <i class="fa-solid fa-paper-plane ms-1"></i></button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== SET NEW PASSWORD (from email reset link) ===================== -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-0">
+                <div>
+                    <h5 class="modal-title fw-600 mb-0">Set new password</h5>
+                    <p class="form-sub mb-0">Choose a new password for your account</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="resetPasswordForm" class="auth-form">
+                    <input type="hidden" id="resetPasswordToken">
+                    <div class="input-floating mb-3">
+                        <i class="fa-solid fa-lock input-icon"></i>
+                        <input type="password" class="form-control" id="resetNewPassword" placeholder="New Password" minlength="6" required>
+                    </div>
+                    <div class="input-floating mb-3">
+                        <i class="fa-solid fa-lock input-icon"></i>
+                        <input type="password" class="form-control" id="resetConfirmPassword" placeholder="Confirm New Password" minlength="6" required>
+                    </div>
+                    <button type="submit" class="btn btn-gradient w-100">Reset Password <i class="fa-solid fa-check ms-1"></i></button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== APP SHELL ===================== -->
+<div id="appWrapper" class="app-wrapper d-none">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+
+            <span class="brand-text">Spartan <b>DMS</b></span>
+            <button class="sidebar-collapse-btn d-none d-lg-flex" id="collapseBtn"><i class="fa-solid fa-angles-left"></i></button>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebarNav">
+            <a href="#" class="nav-link active" data-section="dashboard"><i class="fa-solid fa-gauge-high"></i><span>Dashboard</span></a>
+            <a href="#" class="nav-link" data-section="mrp-stock"><i class="fa-solid fa-tags"></i><span>MRP-wise Stock</span></a>
+
+            <div class="nav-group" data-group="user-management" data-role-only="ADMIN">
+                <button type="button" class="nav-group-toggle" aria-expanded="false">
+                    <i class="fa-solid fa-user-gear nav-group-icon"></i>
+                    <span class="nav-group-label">User Management</span>
+                    <i class="fa-solid fa-chevron-right nav-group-arrow"></i>
+                </button>
+                <div class="nav-submenu">
+                    <a href="#" class="nav-link" data-section="users" data-role-only="ADMIN"><i class="fa-solid fa-users"></i><span>Users</span></a>
+                    <a href="#" class="nav-link" data-section="auditlog" data-role-only="ADMIN"><i class="fa-solid fa-clipboard-list"></i><span>Audit Log</span></a>
+                </div>
+            </div>
+
+            <div class="nav-group" data-group="network">
+                <button type="button" class="nav-group-toggle" aria-expanded="false">
+                    <i class="fa-solid fa-diagram-project nav-group-icon"></i>
+                    <span class="nav-group-label">Network</span>
+                    <i class="fa-solid fa-chevron-right nav-group-arrow"></i>
+                </button>
+                <div class="nav-submenu">
+                    <a href="#" class="nav-link" data-section="superstockists" data-role-only="ADMIN"><i class="fa-solid fa-building-shield"></i><span>Super Stockists</span></a>
+                    <a href="#" class="nav-link" data-section="distributors" data-role-only="ADMIN"><i class="fa-solid fa-truck-field"></i><span>Distributors</span></a>
+                    <a href="#" class="nav-link" data-section="shops" data-role-only="ADMIN,DISTRIBUTOR"><i class="fa-solid fa-shop"></i><span>Shops</span></a>
+                    <a href="#" class="nav-link" data-section="distributor-assignments" data-role-only="ADMIN"><i class="fa-solid fa-clipboard-list"></i><span>Distributor Assignments</span></a>
+                </div>
+            </div>
+
+            <div class="nav-group" data-group="inventory" data-role-only="ADMIN">
+                <button type="button" class="nav-group-toggle" aria-expanded="false">
+                    <i class="fa-solid fa-boxes-stacked nav-group-icon"></i>
+                    <span class="nav-group-label">Inventory</span>
+                    <i class="fa-solid fa-chevron-right nav-group-arrow"></i>
+                </button>
+                <div class="nav-submenu">
+                    <a href="#" class="nav-link" data-section="products" data-role-only="ADMIN"><i class="fa-solid fa-boxes-stacked"></i><span>Products</span></a>
+                    <a href="#" class="nav-link" data-section="categories" data-role-only="ADMIN"><i class="fa-solid fa-tags"></i><span>Categories</span></a>
+                    <a href="#" class="nav-link" data-section="admin-stock-requests" data-role-only="ADMIN"><i class="fa-solid fa-boxes-packing"></i><span>Stock Requests</span></a>
+                    <a href="#" class="nav-link" data-section="stock-summary" data-role-only="ADMIN"><i class="fa-solid fa-clipboard-list"></i><span>Stock Summary</span></a>
+                    <a href="#" class="nav-link" data-section="product-ledger" data-role-only="ADMIN"><i class="fa-solid fa-book-open"></i><span>Product Ledger</span></a>
+                </div>
+            </div>
+
+            <div class="nav-group" data-group="transactions">
+                <button type="button" class="nav-group-toggle" aria-expanded="false">
+                    <i class="fa-solid fa-briefcase nav-group-icon"></i>
+                    <span class="nav-group-label">Transactions</span>
+                    <i class="fa-solid fa-chevron-right nav-group-arrow"></i>
+                </button>
+                <div class="nav-submenu">
+                    <a href="#" class="nav-link" data-section="invoices" data-role-only="ADMIN,DISTRIBUTOR,SUPER_STOCKIST"><i class="fa-solid fa-file-invoice-dollar"></i><span>Invoices</span></a>
+                    <a href="#" class="nav-link" data-section="billed-to-me" data-role-only="DISTRIBUTOR,SUPER_STOCKIST"><i class="fa-solid fa-file-import"></i><span>Bills To Me</span></a>
+                    <a href="#" class="nav-link" data-section="payments" data-role-only="ADMIN,DISTRIBUTOR,SUPER_STOCKIST"><i class="fa-solid fa-money-bill-transfer"></i><span>Payments</span></a>
+                    <a href="#" class="nav-link" data-section="sales-returns" data-role-only="ADMIN"><i class="fa-solid fa-rotate-left"></i><span>Sales Returns</span></a>
+                    <a href="#" class="nav-link" data-section="dist-sales-return" data-exclusive-role="DISTRIBUTOR"><i class="fa-solid fa-rotate-left"></i><span>Sales Return</span></a>
+                    <a href="#" class="nav-link" data-section="dist-purchase-return" data-exclusive-role="DISTRIBUTOR"><i class="fa-solid fa-rotate-right"></i><span>Purchase Return</span></a>
+                    <a href="#" class="nav-link" data-section="ss-sales-return" data-exclusive-role="SUPER_STOCKIST"><i class="fa-solid fa-inbox"></i><span>Sales Return</span></a>
+                    <a href="#" class="nav-link" data-section="ss-purchase-return" data-exclusive-role="SUPER_STOCKIST"><i class="fa-solid fa-rotate-right"></i><span>Purchase Return</span></a>
+                    <a href="#" class="nav-link" data-section="admin-return-history" data-role-only="ADMIN"><i class="fa-solid fa-clock-rotate-left"></i><span>Return History</span></a>
+                </div>
+            </div>
+
+            <div class="nav-group" data-group="accounts" data-role-only="ADMIN">
+                <button type="button" class="nav-group-toggle" aria-expanded="false">
+                    <i class="fa-solid fa-scale-balanced nav-group-icon"></i>
+                    <span class="nav-group-label">Accounts</span>
+                    <i class="fa-solid fa-chevron-right nav-group-arrow"></i>
+                </button>
+                <div class="nav-submenu">
+                    <a href="#" class="nav-link" data-section="account-ledger" data-role-only="ADMIN"><i class="fa-solid fa-book"></i><span>Account Ledger</span></a>
+                    <a href="#" class="nav-link" data-section="customer-ledger" data-role-only="ADMIN"><i class="fa-solid fa-user-tag"></i><span>Customer Ledger</span></a>
+                    <a href="#" class="nav-link" data-section="supplier-ledger" data-role-only="ADMIN"><i class="fa-solid fa-truck"></i><span>Supplier Ledger</span></a>
+                    <a href="#" class="nav-link" data-section="outstanding-report" data-role-only="ADMIN"><i class="fa-solid fa-triangle-exclamation"></i><span>Outstanding</span></a>
+                    <a href="#" class="nav-link" data-section="cash-book" data-role-only="ADMIN"><i class="fa-solid fa-money-bill-wave"></i><span>Cash Book</span></a>
+                    <a href="#" class="nav-link" data-section="bank-book" data-role-only="ADMIN"><i class="fa-solid fa-building-columns"></i><span>Bank Book</span></a>
+                    <a href="#" class="nav-link" data-section="day-book" data-role-only="ADMIN"><i class="fa-solid fa-calendar-day"></i><span>Day Book</span></a>
+                    <a href="#" class="nav-link" data-section="admin-warehouse" data-role-only="ADMIN"><i class="fa-solid fa-warehouse"></i><span>Warehouse Stock</span></a>
+                </div>
+            </div>
+
+            <a href="#" class="nav-link" data-section="ss-distributors" data-exclusive-role="SUPER_STOCKIST"><i class="fa-solid fa-truck-field"></i><span>My Distributors</span></a>
+            <a href="#" class="nav-link" data-section="ss-warehouse" data-exclusive-role="SUPER_STOCKIST"><i class="fa-solid fa-warehouse"></i><span>Warehouse Stock</span></a>
+            <a href="#" class="nav-link" data-section="ss-distributor-requests" data-exclusive-role="SUPER_STOCKIST"><i class="fa-solid fa-dolly"></i><span>Distributor Stock Requests</span></a>
+            <a href="#" class="nav-link" data-section="ss-admin-requests" data-exclusive-role="SUPER_STOCKIST"><i class="fa-solid fa-boxes-packing"></i><span>Admin Stock Requests</span></a>
+            <a href="#" class="nav-link" data-section="ss-stock-transfers" data-exclusive-role="SUPER_STOCKIST"><i class="fa-solid fa-truck-ramp-box"></i><span>Stock Transfers</span></a>
+            <a href="#" class="nav-link" data-section="ss-dispatch-history" data-exclusive-role="SUPER_STOCKIST"><i class="fa-solid fa-clock-rotate-left"></i><span>Dispatch History</span></a>
+            <a href="#" class="nav-link" data-section="my-stock-ledger" data-exclusive-role="SUPER_STOCKIST"><i class="fa-solid fa-book-open"></i><span>Stock Ledger</span></a>
+            <a href="#" class="nav-link" data-section="ss-notifications" data-exclusive-role="SUPER_STOCKIST"><i class="fa-solid fa-bell"></i><span>Notifications</span></a>
+            <a href="#" class="nav-link" data-section="dist-stock-requests" data-exclusive-role="DISTRIBUTOR"><i class="fa-solid fa-dolly"></i><span>Stock Requests</span></a>
+            <a href="#" class="nav-link" data-section="dist-warehouse" data-exclusive-role="DISTRIBUTOR"><i class="fa-solid fa-warehouse"></i><span>Warehouse Stock</span></a>
+            <a href="#" class="nav-link" data-section="dist-assignments" data-exclusive-role="DISTRIBUTOR"><i class="fa-solid fa-clipboard-list"></i><span>My Assignments</span></a>
+            <a href="#" class="nav-link" data-section="my-stock-ledger" data-exclusive-role="DISTRIBUTOR"><i class="fa-solid fa-book-open"></i><span>Stock Ledger</span></a>
+            <a href="#" class="nav-link" data-section="dist-notifications" data-exclusive-role="DISTRIBUTOR"><i class="fa-solid fa-bell"></i><span>Notifications</span></a>
+
+            <a href="#" class="nav-link" data-section="approvals" data-role-only="ADMIN"><i class="fa-solid fa-user-check"></i><span>Registration Approval</span></a>
+            <a href="#" class="nav-link" data-section="reports" data-role-only="ADMIN,DISTRIBUTOR,SUPER_STOCKIST"><i class="fa-solid fa-chart-line"></i><span>Reports</span></a>
+            <a href="#" class="nav-link" data-section="sales-analysis" data-role-only="ADMIN,DISTRIBUTOR,SUPER_STOCKIST"><i class="fa-solid fa-magnifying-glass-chart"></i><span>Sales Analysis</span></a>
+            <a href="#" class="nav-link" data-section="settings"><i class="fa-solid fa-gear"></i><span>Settings</span></a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <a href="#" class="nav-link logout-link" id="logoutBtn"><i class="fa-solid fa-right-from-bracket"></i><span>Logout</span></a>
+        </div>
+    </aside>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- MAIN -->
+    <div class="main-content">
+
+        <!-- TOPBAR -->
+        <header class="topbar">
+            <div class="d-flex align-items-center gap-3">
+                <button class="icon-btn d-lg-none" id="mobileMenuBtn"><i class="fa-solid fa-bars"></i></button>
+                <div class="topbar-search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" placeholder="Search anything...">
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+                <button class="icon-btn theme-toggle-btn" id="themeToggleBtn" title="Toggle theme"><i class="fa-solid fa-moon"></i></button>
+
+                <div class="dropdown">
+                    <button class="icon-btn position-relative" data-bs-toggle="dropdown" id="bellBtn">
+                        <i class="fa-solid fa-bell"></i>
+                        <span class="notif-dot d-none" id="notifDot">0</span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end notif-dropdown glass-card">
+                        <div class="notif-header">Notifications <span class="badge-soft" id="bellNotifBadge">0 New</span></div>
+                        <div id="bellNotifList"></div>
+                        <div class="notif-footer"><a href="#" id="bellViewAllLink">View all notifications</a></div>
+                    </div>
+                </div>
+
+                <div class="dropdown">
+                    <button class="user-chip" data-bs-toggle="dropdown">
+                        <img id="topbarAvatar" src="https://api.dicebear.com/7.x/initials/svg?seed=Admin&backgroundColor=c7a17a" alt="avatar">
+                        <div class="d-none d-md-block text-start">
+                            <div class="user-chip-name" id="topbarUserName">Admin</div>
+                            <div class="user-chip-role" id="topbarUserRole">Administrator</div>
+                        </div>
+                        <i class="fa-solid fa-chevron-down small"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end glass-card">
+                        <li><a class="dropdown-item" href="#" data-section="settings"><i class="fa-solid fa-user me-2"></i>My Profile</a></li>
+                        <li><a class="dropdown-item" href="#" data-section="settings"><i class="fa-solid fa-gear me-2"></i>Settings</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="#" id="logoutBtn2"><i class="fa-solid fa-right-from-bracket me-2"></i>Logout</a></li>
+                    </ul>
+                </div>
+            </div>
+        </header>
+
+        <main class="page-content" id="pageContent">
+
+            <!-- ================= DASHBOARD ================= -->
+            <section class="page-section" id="section-dashboard">
+                <div class="page-heading">
+                    <div>
+                        <h3 id="dashboardHeading">Dashboard</h3>
+                        <p id="dashboardSubheading">Welcome back, here's what's happening with your distribution network.</p>
+                    </div>
+                    <button class="btn btn-gradient btn-sm" data-section="invoices"><i class="fa-solid fa-plus me-1"></i> New Invoice</button>
+                </div>
+
+                <!-- ============ ADMIN DASHBOARD ============ -->
+                <div id="adminDashboardBlock" class="d-none">
+                <div class="row g-3 kpi-row kpi-row-4">
+                    <div class="col-6 col-xl-3">
+                        <a href="#" class="kpi-link-wrap" data-section="reports">
+                        <div class="glass-card kpi-card kpi-card-clickable">
+                            <div class="kpi-top-row">
+                                <span class="kpi-icon kpi-icon-badge bg-peach"><i class="fa-solid fa-sack-dollar"></i></span>
+                                <p class="kpi-label">Total Revenue</p>
+                            </div>
+                            <div class="kpi-value-row">
+                                <h4 id="kpiRevenue">₹0</h4>
+                                <span class="kpi-trend up"><i class="fa-solid fa-arrow-up"></i> 12.4%</span>
+                            </div>
+                        </div>
+                        </a>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <a href="#" class="kpi-link-wrap" data-section="invoices">
+                        <div class="glass-card kpi-card kpi-card-clickable">
+                            <div class="kpi-top-row">
+                                <span class="kpi-icon kpi-icon-badge bg-mint"><i class="fa-solid fa-file-invoice"></i></span>
+                                <p class="kpi-label">Invoices</p>
+                            </div>
+                            <div class="kpi-value-row">
+                                <h4 id="kpiInvoices">0</h4>
+                                <span class="kpi-trend up"><i class="fa-solid fa-arrow-up"></i> 6.1%</span>
+                            </div>
+                        </div>
+                        </a>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <a href="#" class="kpi-link-wrap" data-section="distributors">
+                        <div class="glass-card kpi-card kpi-card-clickable">
+                            <div class="kpi-top-row">
+                                <span class="kpi-icon kpi-icon-badge bg-lavender"><i class="fa-solid fa-truck-field"></i></span>
+                                <p class="kpi-label">Distributors</p>
+                            </div>
+                            <div class="kpi-value-row">
+                                <h4 id="kpiDistributors">0</h4>
+                                <span class="kpi-trend down"><i class="fa-solid fa-arrow-down"></i> 1.2%</span>
+                            </div>
+                        </div>
+                        </a>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <a href="#" class="kpi-link-wrap" data-section="payments">
+                        <div class="glass-card kpi-card kpi-card-clickable">
+                            <div class="kpi-top-row">
+                                <span class="kpi-icon kpi-icon-badge bg-rose"><i class="fa-solid fa-hourglass-half"></i></span>
+                                <p class="kpi-label">Pending Payments</p>
+                            </div>
+                            <div class="kpi-value-row">
+                                <h4 id="kpiPending">₹0</h4>
+                                <span class="kpi-trend down"><i class="fa-solid fa-arrow-down"></i> 3.4%</span>
+                            </div>
+                        </div>
+                        </a>
+                    </div>
+                    <div class="col-6 col-xl-2">
+                        <a href="#" class="kpi-link-wrap" data-section="reports">
+                        <div class="glass-card kpi-card kpi-card-clickable">
+                            <div class="kpi-top-row">
+                                <span class="kpi-icon kpi-icon-badge bg-mint"><i class="fa-solid fa-calendar-day"></i></span>
+                                <p class="kpi-label">Today's Sales</p>
+                            </div>
+                            <div class="kpi-value-row"><h5 id="kpiTodaySales" class="kpi-animate">₹0</h5></div>
+                        </div>
+                        </a>
+                    </div>
+                    <div class="col-6 col-xl-2">
+                        <a href="#" class="kpi-link-wrap" data-section="reports">
+                        <div class="glass-card kpi-card kpi-card-clickable">
+                            <div class="kpi-top-row">
+                                <span class="kpi-icon kpi-icon-badge bg-peach"><i class="fa-solid fa-calendar-days"></i></span>
+                                <p class="kpi-label">Monthly Sales</p>
+                            </div>
+                            <div class="kpi-value-row"><h5 id="kpiMonthlySales" class="kpi-animate">₹0</h5></div>
+                        </div>
+                        </a>
+                    </div>
+                    <div class="col-6 col-xl-2">
+                        <a href="#" class="kpi-link-wrap" data-section="reports">
+                        <div class="glass-card kpi-card kpi-card-clickable">
+                            <div class="kpi-top-row">
+                                <span class="kpi-icon kpi-icon-badge bg-lavender"><i class="fa-solid fa-calendar"></i></span>
+                                <p class="kpi-label">Yearly Sales</p>
+                            </div>
+                            <div class="kpi-value-row"><h5 id="kpiYearlySales" class="kpi-animate">₹0</h5></div>
+                        </div>
+                        </a>
+                    </div>
+                    <div class="col-6 col-xl-2">
+                        <a href="#" class="kpi-link-wrap" data-section="payments">
+                        <div class="glass-card kpi-card kpi-card-clickable">
+                            <div class="kpi-top-row">
+                                <span class="kpi-icon kpi-icon-badge bg-mint"><i class="fa-solid fa-circle-check"></i></span>
+                                <p class="kpi-label">Paid Amount</p>
+                            </div>
+                            <div class="kpi-value-row"><h5 id="kpiPaidAmount" class="kpi-animate">₹0</h5></div>
+                        </div>
+                        </a>
+                    </div>
+                    <div class="col-6 col-xl-2">
+                        <a href="#" class="kpi-link-wrap" id="kpiOutstandingLink" data-action="outstanding-details">
+                        <div class="glass-card kpi-card kpi-card-clickable">
+                            <div class="kpi-top-row">
+                                <span class="kpi-icon kpi-icon-badge bg-rose"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                                <p class="kpi-label">Outstanding</p>
+                            </div>
+                            <div class="kpi-value-row"><h5 id="kpiOutstanding" class="kpi-animate">₹0</h5></div>
+                        </div>
+                        </a>
+                    </div>
+                    <div class="col-6 col-xl-2">
+                        <a href="#" class="kpi-link-wrap" data-section="payments">
+                        <div class="glass-card kpi-card kpi-card-clickable">
+                            <div class="kpi-top-row">
+                                <span class="kpi-icon kpi-icon-badge bg-peach"><i class="fa-solid fa-credit-card"></i></span>
+                                <p class="kpi-label">Payments</p>
+                            </div>
+                            <div class="kpi-value-row"><h5 id="kpiTotalPayments" class="kpi-animate">0</h5></div>
+                        </div>
+                        </a>
+                    </div>
+                    <div class="col-6 col-xl-2">
+                        <a href="#" class="kpi-link-wrap" data-section="products">
+                        <div class="glass-card kpi-card kpi-card-clickable">
+                            <div class="kpi-top-row">
+                                <span class="kpi-icon kpi-icon-badge bg-lavender"><i class="fa-solid fa-boxes-stacked"></i></span>
+                                <p class="kpi-label">Products</p>
+                            </div>
+                            <div class="kpi-value-row"><h5 id="kpiTotalProducts" class="kpi-animate">0</h5></div>
+                        </div>
+                        </a>
+                    </div>
+                    <div class="col-6 col-xl-2">
+                        <a href="#" class="kpi-link-wrap" data-section="shops">
+                        <div class="glass-card kpi-card kpi-card-clickable">
+                            <div class="kpi-top-row">
+                                <span class="kpi-icon kpi-icon-badge bg-mint"><i class="fa-solid fa-shop"></i></span>
+                                <p class="kpi-label">Shops</p>
+                            </div>
+                            <div class="kpi-value-row"><h5 id="kpiTotalShops" class="kpi-animate">0</h5></div>
+                        </div>
+                        </a>
+                    </div>
+                    <div class="col-6 col-xl-2">
+                        <a href="#" class="kpi-link-wrap" data-section="superstockists">
+                        <div class="glass-card kpi-card kpi-card-clickable">
+                            <div class="kpi-top-row">
+                                <span class="kpi-icon kpi-icon-badge bg-peach"><i class="fa-solid fa-warehouse"></i></span>
+                                <p class="kpi-label">Super Stockists</p>
+                            </div>
+                            <div class="kpi-value-row"><h5 id="kpiTotalSS" class="kpi-animate">0</h5></div>
+                        </div>
+                        </a>
+                    </div>
+                    <div class="col-6 col-xl-2">
+                        <a href="#" class="kpi-link-wrap" data-section="products">
+                        <div class="glass-card kpi-card kpi-card-clickable">
+                            <div class="kpi-top-row">
+                                <span class="kpi-icon kpi-icon-badge bg-rose"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                                <p class="kpi-label">Low Stock</p>
+                            </div>
+                            <div class="kpi-value-row"><h5 id="kpiLowStock" class="kpi-animate">0</h5></div>
+                        </div>
+                        </a>
+                    </div>
+                    <div class="col-6 col-xl-2">
+                        <a href="#" class="kpi-link-wrap" data-section="products">
+                        <div class="glass-card kpi-card kpi-card-clickable">
+                            <div class="kpi-top-row">
+                                <span class="kpi-icon kpi-icon-badge bg-lavender"><i class="fa-solid fa-box-open"></i></span>
+                                <p class="kpi-label">Out of Stock</p>
+                            </div>
+                            <div class="kpi-value-row"><h5 id="kpiOutOfStock" class="kpi-animate">0</h5></div>
+                        </div>
+                        </a>
+                    </div>
+                    <div class="col-6 col-xl-2">
+                        <a href="#" class="kpi-link-wrap" data-section="users">
+                        <div class="glass-card kpi-card kpi-card-clickable">
+                            <div class="kpi-top-row">
+                                <span class="kpi-icon kpi-icon-badge bg-rose"><i class="fa-solid fa-users"></i></span>
+                                <p class="kpi-label">Users</p>
+                            </div>
+                            <div class="kpi-value-row"><h5 id="kpiTotalUsers" class="kpi-animate">0</h5></div>
+                        </div>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-1 chart-row">
+                    <div class="col-lg-8">
+                        <div class="glass-card chart-card">
+                            <div class="chart-card-head">
+                                <h6>Monthly Sales Overview</h6>
+                                <select class="form-select form-select-sm w-auto" id="salesRangeSelect">
+                                    <option>Last 6 months</option>
+                                    <option>Last 12 months</option>
+                                </select>
+                            </div>
+                            <div class="chart-canvas-wrap"><canvas id="salesChart"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="glass-card chart-card">
+                            <h6>Top Product Categories</h6>
+                            <div class="chart-canvas-wrap"><canvas id="categoryChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============ SALES BREAKDOWN: District / Distributor / Super Stockist ============ -->
+                <div class="glass-card chart-card mt-3">
+                    <div class="chart-card-head flex-wrap gap-2">
+                        <h6 class="mb-0">Sales Breakdown</h6>
+                        <div id="breakdownActiveFilters" class="d-flex flex-wrap gap-1"></div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6 col-md-2">
+                            <input type="text" class="form-control form-control-sm" id="bdDistrict" placeholder="District">
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <input type="text" class="form-control form-control-sm" id="bdState" placeholder="State">
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <select class="form-select form-select-sm" id="bdDistributor"><option value="">All Distributors</option></select>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <select class="form-select form-select-sm" id="bdSuperStockist"><option value="">All Super Stockists</option></select>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <select class="form-select form-select-sm" id="bdMonth">
+                                <option value="">All Months</option>
+                                <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+                                <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+                                <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+                                <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <select class="form-select form-select-sm" id="bdYear"><option value="">All Years</option></select>
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-lg-4">
+                            <p class="text-muted small mb-1">Sales by District</p>
+                            <div class="chart-canvas-wrap chart-canvas-wrap-sm"><canvas id="districtChart"></canvas></div>
+                        </div>
+                        <div class="col-lg-4">
+                            <p class="text-muted small mb-1">Sales by Distributor</p>
+                            <div class="chart-canvas-wrap chart-canvas-wrap-sm"><canvas id="distributorChart"></canvas></div>
+                        </div>
+                        <div class="col-lg-4">
+                            <p class="text-muted small mb-1">Sales by Super Stockist</p>
+                            <div class="chart-canvas-wrap chart-canvas-wrap-sm"><canvas id="superStockistChart"></canvas></div>
+                        </div>
+                    </div>
+                    <p class="text-muted small mt-2 mb-0">Click a bar to drill into that district / distributor / super stockist. Click again (or use the × on the filter chip) to clear it.</p>
+                </div>
+
+                <div class="row g-3 mt-1">
+                    <div class="col-lg-7">
+                        <div class="glass-card table-card">
+                            <div class="table-card-head">
+                                <h6>Recent Invoices</h6>
+                                <a href="#" class="link-soft" data-section="invoices">View all</a>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table brisk-table">
+                                    <thead><tr><th>Invoice</th><th>Shop</th><th>Amount</th><th>Status</th></tr></thead>
+                                    <tbody id="recentInvoicesBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-5">
+                        <div class="glass-card table-card">
+                            <div class="table-card-head"><h6>Low Stock Products</h6></div>
+                            <div id="lowStockList" class="mini-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-1">
+                    <div class="col-lg-4">
+                        <div class="glass-card table-card">
+                            <div class="table-card-head"><h6>Top Products</h6></div>
+                            <div id="topProductsList" class="mini-list"></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="glass-card table-card">
+                            <div class="table-card-head"><h6>Pending Payments</h6></div>
+                            <div id="pendingPaymentsList" class="mini-list"></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="glass-card table-card">
+                            <div class="table-card-head"><h6>Recent Activity</h6></div>
+                            <div id="recentActivityList" class="mini-list timeline"></div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+                <!-- ============ /ADMIN DASHBOARD ============ -->
+
+                <!-- ============ DISTRIBUTOR DASHBOARD ============
+                     Matches the notebook sketch: Total Sales / Pending Order /
+                     Complete Order / Total Revenue / Pending Amount cards,
+                     a sales chart, recent invoice list, pending payment list.
+                     Computed entirely from this distributor's OWN already-
+                     scoped invoices/payments/shops (loaded via loadAndRenderInvoices/
+                     loadAndRenderPayments) — no admin-only endpoints involved. -->
+                <div id="distributorDashboardBlock" class="d-none">
+                    <div class="row g-3 kpi-row kpi-row-5">
+                        <div class="col-6 col-xl-3">
+                            <div class="glass-card kpi-card">
+                                <div class="kpi-top-row">
+                                    <span class="kpi-icon kpi-icon-badge bg-mint"><i class="fa-solid fa-cart-shopping"></i></span>
+                                    <p class="kpi-label">Total Sales</p>
+                                </div>
+                                <div class="kpi-value-row"><h4 id="distKpiTotalSales">₹0</h4></div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-xl-3">
+                            <div class="glass-card kpi-card">
+                                <div class="kpi-top-row">
+                                    <span class="kpi-icon kpi-icon-badge bg-rose"><i class="fa-solid fa-hourglass-half"></i></span>
+                                    <p class="kpi-label">Pending Invoices</p>
+                                </div>
+                                <div class="kpi-value-row"><h4 id="distKpiPendingOrders">0</h4></div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-xl-3">
+                            <div class="glass-card kpi-card">
+                                <div class="kpi-top-row">
+                                    <span class="kpi-icon kpi-icon-badge bg-lavender"><i class="fa-solid fa-circle-check"></i></span>
+                                    <p class="kpi-label">Completed Invoices</p>
+                                </div>
+                                <div class="kpi-value-row"><h4 id="distKpiCompleteOrders">0</h4></div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-xl-3">
+                            <div class="glass-card kpi-card">
+                                <div class="kpi-top-row">
+                                    <span class="kpi-icon kpi-icon-badge bg-peach"><i class="fa-solid fa-sack-dollar"></i></span>
+                                    <p class="kpi-label">Total Revenue Collected</p>
+                                </div>
+                                <div class="kpi-value-row"><h4 id="distKpiRevenue">₹0</h4></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-1 chart-row">
+                        <div class="col-6 col-xl-3">
+                            <div class="glass-card kpi-card">
+                                <div class="kpi-top-row">
+                                    <span class="kpi-icon kpi-icon-badge bg-rose"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                                    <p class="kpi-label">Pending Amount</p>
+                                </div>
+                                <div class="kpi-value-row"><h4 id="distKpiPendingAmount">₹0</h4></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-1 chart-row">
+                        <div class="col-lg-8">
+                            <div class="glass-card chart-card">
+                                <h6>Sales Chart</h6>
+                                <div class="chart-canvas-wrap"><canvas id="distSalesChart"></canvas></div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="glass-card table-card">
+                                <div class="table-card-head"><h6>Pending Payment List</h6></div>
+                                <div id="distPendingPaymentsList" class="mini-list"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-1">
+                        <div class="col-lg-12">
+                            <div class="glass-card table-card">
+                                <div class="table-card-head">
+                                    <h6>Recent Invoices</h6>
+                                    <a href="#" class="link-soft" data-section="invoices">View all</a>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table brisk-table">
+                                        <thead><tr><th>Invoice</th><th>Shop</th><th>Date</th><th>Amount</th><th>Payment Status</th></tr></thead>
+                                        <tbody id="distRecentInvoicesBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- ============ /DISTRIBUTOR DASHBOARD ============ -->
+
+                <!-- ============ SUPER STOCKIST DASHBOARD ============
+                     Built only from endpoints that exist today: me/profile
+                     and me/distributors. Sales/stock KPIs across this Super
+                     Stockist's network land once the stock-request workflow
+                     phase is built. -->
+                <div id="superStockistDashboardBlock" class="d-none">
+                    <div class="row g-3 kpi-row kpi-row-4">
+                        <div class="col-6 col-xl-3">
+                            <div class="glass-card kpi-card">
+                                <div class="kpi-top-row">
+                                    <span class="kpi-icon kpi-icon-badge bg-mint"><i class="fa-solid fa-truck-field"></i></span>
+                                    <p class="kpi-label">Assigned Distributors</p>
+                                </div>
+                                <div class="kpi-value-row"><h4 id="ssKpiAssignedDistributors">0</h4></div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-xl-3">
+                            <div class="glass-card kpi-card">
+                                <div class="kpi-top-row">
+                                    <span class="kpi-icon kpi-icon-badge bg-lavender"><i class="fa-solid fa-circle-check"></i></span>
+                                    <p class="kpi-label">Active Distributors</p>
+                                </div>
+                                <div class="kpi-value-row"><h4 id="ssKpiActiveDistributors">0</h4></div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-xl-3">
+                            <a href="#" class="kpi-link-wrap" data-section="ss-distributor-requests">
+                            <div class="glass-card kpi-card kpi-card-clickable">
+                                <div class="kpi-top-row">
+                                    <span class="kpi-icon kpi-icon-badge bg-peach"><i class="fa-solid fa-clipboard-list"></i></span>
+                                    <p class="kpi-label">Pending Requests</p>
+                                </div>
+                                <div class="kpi-value-row"><h4 id="ssKpiPendingRequests">0</h4></div>
+                            </div>
+                            </a>
+                        </div>
+                        <div class="col-6 col-xl-3">
+                            <a href="#" class="kpi-link-wrap" data-section="ss-stock-transfers">
+                            <div class="glass-card kpi-card kpi-card-clickable">
+                                <div class="kpi-top-row">
+                                    <span class="kpi-icon kpi-icon-badge bg-rose"><i class="fa-solid fa-truck-ramp-box"></i></span>
+                                    <p class="kpi-label">Incoming Transfers</p>
+                                </div>
+                                <div class="kpi-value-row"><h4 id="ssKpiIncomingTransfers">0</h4></div>
+                            </div>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-1">
+                        <div class="col-lg-6">
+                            <div class="glass-card table-card">
+                                <div class="table-card-head">
+                                    <h6>Recent Stock Requests</h6>
+                                    <a href="#" class="link-soft" data-section="ss-distributor-requests">View all</a>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table brisk-table">
+                                        <thead><tr><th>Product</th><th>Qty</th><th>Status</th></tr></thead>
+                                        <tbody id="ssRecentRequestsBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="glass-card table-card">
+                                <div class="table-card-head">
+                                    <h6>Recent Incoming Transfers</h6>
+                                    <a href="#" class="link-soft" data-section="ss-stock-transfers">View all</a>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table brisk-table">
+                                        <thead><tr><th>Product</th><th>Qty</th><th>Date</th></tr></thead>
+                                        <tbody id="ssRecentTransfersBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-1">
+                        <div class="col-lg-12">
+                            <div class="glass-card table-card">
+                                <div class="table-card-head">
+                                    <h6>My Distributors</h6>
+                                    <a href="#" class="link-soft" data-section="ss-distributors">View all</a>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table brisk-table">
+                                        <thead><tr><th>Distributor</th><th>Area</th><th>Contact</th><th>Status</th></tr></thead>
+                                        <tbody id="ssRecentDistributorsBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- ============ /SUPER STOCKIST DASHBOARD ============ -->
+            </section>
+
+            <!-- ================= USERS ================= -->
+            <section class="page-section d-none" id="section-users">
+                <div class="page-heading">
+                    <div><h3>Users</h3><p>Manage system users, roles and access.</p></div>
+                    <button class="btn btn-gradient btn-sm" id="addUserBtn"><i class="fa-solid fa-plus me-1"></i> Add User</button>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-toolbar">
+                        <div class="topbar-search sm"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="usersSearch" placeholder="Search users..."></div>
+                        <select class="form-select form-select-sm w-auto" id="usersStatusFilter">
+                            <option value="">All Status</option><option value="Active">Active</option><option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>User</th><th>Email</th><th>Phone</th><th>Role</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+                            <tbody id="usersTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="table-pagination" id="usersPagination"></div>
+                </div>
+            </section>
+
+            <!-- ================= REGISTRATION APPROVAL ================= -->
+            <section class="page-section d-none" id="section-approvals">
+                <div class="page-heading">
+                    <div><h3>Registration Approval</h3><p>Review new Distributor and Super Stockist registrations before they can sign in.</p></div>
+                    <button class="btn btn-outline-secondary btn-sm" id="repairProfilesBtn" title="Create missing Distributor / Super Stockist profiles for older accounts">
+                        <i class="fa-solid fa-wrench me-1"></i> Repair profiles
+                    </button>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-toolbar">
+                        <div class="topbar-search sm"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="approvalsSearch" placeholder="Search by name, username, email..."></div>
+                        <select class="form-select form-select-sm w-auto" id="approvalsStatusFilter">
+                            <option value="">All Status</option>
+                            <option value="PENDING" selected>Pending</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="REJECTED">Rejected</option>
+                        </select>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Phone</th><th>Role</th><th>Registered</th><th>Status</th><th class="text-end">Action</th></tr></thead>
+                            <tbody id="approvalsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= SUPER STOCKISTS ================= -->
+            <section class="page-section d-none" id="section-superstockists">
+                <div class="page-heading">
+                    <div><h3>Super Stockists</h3><p>Manage the Super Stockist layer between Admin and Distributors.</p></div>
+                    <button class="btn btn-gradient btn-sm" id="addSuperStockistBtn"><i class="fa-solid fa-plus me-1"></i> Add Super Stockist</button>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-toolbar">
+                        <div class="topbar-search sm"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="superStockistsSearch" placeholder="Search super stockists..."></div>
+                        <select class="form-select form-select-sm w-auto" id="superStockistsStatusFilter">
+                            <option value="">All Status</option>
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                        <select class="form-select form-select-sm w-auto" id="superStockistsDistrictFilter"><option value="">All Districts</option></select>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Name</th><th>District</th><th>Mobile</th><th>Distributors</th><th>Status</th><th class="text-end">Action</th></tr></thead>
+                            <tbody id="superStockistsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= DISTRIBUTORS ================= -->
+            <section class="page-section d-none" id="section-distributors">
+                <div class="page-heading">
+                    <div><h3>Distributors</h3><p>Manage distributor network across all areas.</p></div>
+                    <button class="btn btn-gradient btn-sm" id="addDistributorBtn"><i class="fa-solid fa-plus me-1"></i> Add Distributor</button>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-toolbar">
+                        <div class="topbar-search sm"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="distributorsSearch" placeholder="Search distributors..."></div>
+                        <select class="form-select form-select-sm w-auto" id="distributorsAreaFilter"><option value="">All Areas</option></select>
+                        <select class="form-select form-select-sm w-auto" id="distributorsDistrictFilter"><option value="">All Districts</option></select>
+                        <select class="form-select form-select-sm w-auto" id="distributorsStatusFilter">
+                            <option value="">All Status</option>
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Name</th><th>Area</th><th>Contact</th><th>Super Stockist</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+                            <tbody id="distributorsTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="table-pagination" id="distributorsPagination"></div>
+                </div>
+            </section>
+
+            <!-- ================= ADMIN: DISTRIBUTOR ASSIGNMENTS ================= -->
+            <section class="page-section d-none" id="section-distributor-assignments">
+                <div class="page-heading">
+                    <div><h3>Distributor Assignments</h3><p>Assign a distributor to deliver a product & quantity to a shop.</p></div>
+                    <button class="btn btn-gradient btn-sm" id="addAssignmentBtn"><i class="fa-solid fa-plus me-1"></i> New Assignment</button>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-toolbar">
+                        <select class="form-select form-select-sm w-auto" id="assignmentsStatusFilter">
+                            <option value="">All Status</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="MODIFIED">Modified</option>
+                            <option value="REJECTED">Rejected</option>
+                        </select>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Distributor</th><th>Shop</th><th>Product</th><th>Qty</th><th>Distributor Response</th><th>Status</th><th>Remarks</th><th class="text-end">Action</th></tr></thead>
+                            <tbody id="assignmentsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= ADMIN: STOCK REQUESTS (from Super Stockists) ================= -->
+            <section class="page-section d-none" id="section-admin-stock-requests">
+                <div class="page-heading">
+                    <div><h3>Stock Requests</h3><p>Requests Super Stockists have raised to Company/Admin.</p></div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-toolbar">
+                        <select class="form-select form-select-sm w-auto" id="adminReqStatusFilter">
+                            <option value="">All Status</option>
+                            <option value="PENDING" selected>Pending</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="FULFILLED">Fulfilled</option>
+                            <option value="REJECTED">Rejected</option>
+                            <option value="CANCELLED">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Super Stockist</th><th>Product</th><th>Requested</th><th>Approved</th><th>Status</th><th>Remarks</th><th class="text-end">Action</th></tr></thead>
+                            <tbody id="adminReqTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= SUPER STOCKIST: MY DISTRIBUTORS ================= -->
+            <section class="page-section d-none" id="section-ss-distributors">
+                <div class="page-heading">
+                    <div><h3>My Distributors</h3><p>Distributors assigned to you by the admin.</p></div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Name</th><th>Area</th><th>Contact</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+                            <tbody id="ssDistributorsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= SUPER STOCKIST: WAREHOUSE STOCK ================= -->
+            <section class="page-section d-none" id="section-ss-warehouse">
+                <div class="page-heading">
+                    <div><h3>Warehouse Stock</h3><p>Your current on-hand stock by product.</p></div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Product</th><th>Code</th><th>Quantity</th><th>MRP</th><th>SS Price</th></tr></thead>
+                            <tbody id="ssWarehouseTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= DISTRIBUTOR: WAREHOUSE STOCK ================= -->
+            <section class="page-section d-none" id="section-dist-warehouse">
+                <div class="page-heading">
+                    <div><h3>Warehouse Stock</h3><p>Your current on-hand stock by product.</p></div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Product</th><th>Code</th><th>Quantity</th><th>MRP</th><th>DP Price</th></tr></thead>
+                            <tbody id="distWarehouseTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= ADMIN: WAREHOUSE STOCK (COMPANY-WIDE, ALL LEVELS) ================= -->
+            <section class="page-section d-none" id="section-admin-warehouse">
+                <div class="page-heading">
+                    <div><h3>Warehouse Stock</h3><p>Current on-hand stock across every Super Stockist and Distributor.</p></div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Owner</th><th>Product</th><th>Code</th><th>Quantity</th></tr></thead>
+                            <tbody id="adminWarehouseTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= BILLS TO ME (purchases raised against this party) ================= -->
+            <section class="page-section d-none" id="section-billed-to-me">
+                <div class="page-heading">
+                    <div><h3>Bills To Me</h3><p>Invoices raised against you by the tier above. Your own invoices live under Invoices.</p></div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Invoice #</th><th>Date</th><th>From</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead>
+                            <tbody id="billedToMeBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= DISTRIBUTOR: SALES RETURN (Shop -> Distributor) ================= -->
+            <section class="page-section d-none" id="section-dist-sales-return">
+                <div class="page-heading">
+                    <div><h3>Sales Return</h3><p>Goods returned to you by a shop. Increases your stock.</p></div>
+                    <button class="btn btn-gradient" id="distSalesReturnAddBtn"><i class="fa-solid fa-plus me-1"></i> New Sales Return</button>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Date</th><th>Invoice</th><th>Shop</th><th>Product</th><th>Qty</th><th>Amount</th><th>Reason</th></tr></thead>
+                            <tbody id="distSalesReturnBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= DISTRIBUTOR: PURCHASE RETURN (Distributor -> Super Stockist) ================= -->
+            <section class="page-section d-none" id="section-dist-purchase-return">
+                <div class="page-heading">
+                    <div><h3>Purchase Return</h3><p>Goods you send back up to your Super Stockist. Decreases your stock.</p></div>
+                    <button class="btn btn-outline-secondary btn-sm" id="distPurchaseReturnPdfBtn"><i class="fa-solid fa-file-pdf me-1"></i> PDF</button>
+                    <button class="btn btn-gradient" id="distPurchaseReturnAddBtn"><i class="fa-solid fa-plus me-1"></i> New Purchase Return</button>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Return #</th><th>Date</th><th>To</th><th>Product</th><th>Qty</th><th>Amount</th><th>Reason</th><th class="text-end">Actions</th></tr></thead>
+                            <tbody id="distPurchaseReturnBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= SUPER STOCKIST: SALES RETURN (Distributor -> SS, received) ================= -->
+            <section class="page-section d-none" id="section-ss-sales-return">
+                <div class="page-heading">
+                    <div><h3>Sales Return</h3><p>Goods returned to you by your distributors. Increases your stock.</p></div>
+                    <button class="btn btn-outline-secondary btn-sm" id="ssSalesReturnPdfBtn"><i class="fa-solid fa-file-pdf me-1"></i> PDF</button>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Return #</th><th>Date</th><th>From Distributor</th><th>Product</th><th class="text-end">Qty</th><th class="text-end">Amount</th><th>Status</th><th>Reason</th><th class="text-end">Actions</th></tr></thead>
+                            <tbody id="ssSalesReturnBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= SUPER STOCKIST: PURCHASE RETURN (SS -> Company) ================= -->
+            <section class="page-section d-none" id="section-ss-purchase-return">
+                <div class="page-heading">
+                    <div><h3>Purchase Return</h3><p>Goods you send back up to the Company. Decreases your stock.</p></div>
+                    <button class="btn btn-outline-secondary btn-sm" id="ssPurchaseReturnPdfBtn"><i class="fa-solid fa-file-pdf me-1"></i> PDF</button>
+                    <button class="btn btn-gradient" id="ssPurchaseReturnAddBtn"><i class="fa-solid fa-plus me-1"></i> New Purchase Return</button>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Return #</th><th>Date</th><th>To</th><th>Product</th><th>Qty</th><th>Amount</th><th>Reason</th><th class="text-end">Actions</th></tr></thead>
+                            <tbody id="ssPurchaseReturnBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= ADMIN: RETURN HISTORY (read-only, all levels) ================= -->
+            <section class="page-section d-none" id="section-admin-return-history">
+                <div class="page-heading">
+                    <div><h3>Return History</h3><p>Every return across the hierarchy. Read-only — stock and ledgers already updated automatically.</p></div>
+                    <button class="btn btn-outline-secondary btn-sm" id="adminReturnHistoryPdfBtn"><i class="fa-solid fa-file-pdf me-1"></i> PDF</button>
+                </div>
+                <div class="glass-card p-3 mb-3">
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-outline-primary active" id="retHistAllBtn">All Returns</button>
+                        <button class="btn btn-sm btn-outline-primary" id="retHistInboundBtn">Received into Company</button>
+                    </div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Return #</th><th>Date</th><th>From</th><th>To</th><th>Product</th><th>Qty</th><th>Amount</th><th>By</th></tr></thead>
+                            <tbody id="adminReturnHistoryBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= MRP-WISE STOCK (all roles; scoped server-side) ================= -->
+            <section class="page-section d-none" id="section-mrp-stock">
+                <div class="page-heading">
+                    <div><h3>MRP-wise Stock</h3><p>Current on-hand stock grouped by MRP price point.</p></div>
+                </div>
+                <div id="mrpStockGroups"></div>
+            </section>
+
+            <!-- ================= SUPER STOCKIST: DISTRIBUTOR STOCK REQUESTS ================= -->
+            <section class="page-section d-none" id="section-ss-distributor-requests">
+                <div class="page-heading">
+                    <div><h3>Distributor Stock Requests</h3><p>Requests your distributors have raised to you.</p></div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-toolbar">
+                        <select class="form-select form-select-sm w-auto" id="ssDistReqStatusFilter">
+                            <option value="">All Status</option>
+                            <option value="PENDING" selected>Pending</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="FULFILLED">Fulfilled</option>
+                            <option value="REJECTED">Rejected</option>
+                            <option value="CANCELLED">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Distributor</th><th>Product</th><th>Requested</th><th>Approved</th><th>Status</th><th>Remarks</th><th class="text-end">Action</th></tr></thead>
+                            <tbody id="ssDistReqTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= SUPER STOCKIST: ADMIN STOCK REQUESTS ================= -->
+            <section class="page-section d-none" id="section-ss-admin-requests">
+                <div class="page-heading">
+                    <div><h3>Admin Stock Requests</h3><p>Requests you've raised to Admin for your own warehouse.</p></div>
+                    <button class="btn btn-gradient btn-sm" id="addSsRequestBtn"><i class="fa-solid fa-plus me-1"></i> Request Stock</button>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Product</th><th>Requested</th><th>Approved</th><th>Status</th><th>Remarks</th><th class="text-end">Action</th></tr></thead>
+                            <tbody id="ssAdminReqTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= SUPER STOCKIST: STOCK TRANSFERS (received from Company) ================= -->
+            <section class="page-section d-none" id="section-ss-stock-transfers">
+                <div class="page-heading">
+                    <div><h3>Stock Transfers</h3><p>Stock you've received from Admin/Company.</p></div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Product</th><th>Quantity</th><th>Date</th><th>By</th><th>Status</th><th>Remarks</th></tr></thead>
+                            <tbody id="ssTransfersTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= SUPER STOCKIST: DISPATCH HISTORY (sent to distributors) ================= -->
+            <section class="page-section d-none" id="section-ss-dispatch-history">
+                <div class="page-heading">
+                    <div><h3>Dispatch History</h3><p>Stock you've dispatched to your distributors.</p></div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Distributor</th><th>Product</th><th>Quantity</th><th>Date</th><th>By</th><th>Remarks</th></tr></thead>
+                            <tbody id="ssDispatchTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= SUPER STOCKIST: NOTIFICATIONS ================= -->
+            <section class="page-section d-none" id="section-ss-notifications">
+                <div class="page-heading">
+                    <div><h3>Notifications</h3><p>Updates on your stock requests and dispatches.</p></div>
+                    <button class="btn btn-outline-secondary btn-sm" id="ssMarkAllReadBtn">Mark all read</button>
+                </div>
+                <div class="glass-card table-card">
+                    <div id="ssNotificationsList" class="mini-list"></div>
+                </div>
+            </section>
+
+            <!-- ================= DISTRIBUTOR: STOCK REQUESTS ================= -->
+            <section class="page-section d-none" id="section-dist-stock-requests">
+                <div class="page-heading">
+                    <div><h3>Stock Requests</h3><p>Request stock from your Super Stockist.</p></div>
+                    <button class="btn btn-gradient btn-sm" id="addDistRequestBtn"><i class="fa-solid fa-plus me-1"></i> Request Stock</button>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Product</th><th>Requested</th><th>Approved</th><th>Status</th><th>Remarks</th><th class="text-end">Action</th></tr></thead>
+                            <tbody id="distReqTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= DISTRIBUTOR: MY ASSIGNMENTS ================= -->
+            <section class="page-section d-none" id="section-dist-assignments">
+                <div class="page-heading">
+                    <div><h3>My Assignments</h3><p>Delivery tasks assigned to you by Admin.</p></div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Shop</th><th>Product</th><th>Qty</th><th>Status</th><th>Remarks</th><th class="text-end">Action</th></tr></thead>
+                            <tbody id="distAssignmentsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= DISTRIBUTOR: NOTIFICATIONS ================= -->
+            <section class="page-section d-none" id="section-dist-notifications">
+                <div class="page-heading">
+                    <div><h3>Notifications</h3><p>Updates on your stock requests and assignments.</p></div>
+                    <button class="btn btn-outline-secondary btn-sm" id="distMarkAllReadBtn">Mark all read</button>
+                </div>
+                <div class="glass-card table-card">
+                    <div id="distNotificationsList" class="mini-list"></div>
+                </div>
+            </section>
+
+            <!-- ================= PRODUCTS ================= -->
+            <section class="page-section d-none" id="section-products">
+                <div class="page-heading">
+                    <div><h3>Products</h3><p>Manage your dry fruits & nuts inventory.</p></div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" id="stockEntryBtn"><i class="fa-solid fa-boxes-packing me-1"></i> Stock Entry</button>
+                        <button class="btn btn-gradient btn-sm" id="addProductBtn"><i class="fa-solid fa-plus me-1"></i> Add Product</button>
+                    </div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-toolbar">
+                        <div class="topbar-search sm"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="productsSearch" placeholder="Search products..."></div>
+                        <select class="form-select form-select-sm w-auto" id="productsCategoryFilter"><option value="">All Categories</option></select>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Product</th><th>Category</th><th>Barcode</th><th>Stock</th><th>Price</th><th>Tax</th><th class="text-end">Actions</th></tr></thead>
+                            <tbody id="productsTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="table-pagination" id="productsPagination"></div>
+                </div>
+            </section>
+
+            <!-- ================= STOCK SUMMARY ================= -->
+            <section class="page-section d-none" id="section-stock-summary">
+                <div class="page-heading">
+                    <div><h3>Stock Summary</h3><p>Opening, Inward, Outward and Closing stock — quantity, rate and value per product.</p></div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" id="stockSummaryExportExcel"><i class="fa-solid fa-file-excel me-1"></i> Excel</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="stockSummaryExportPdf"><i class="fa-solid fa-file-pdf me-1"></i> PDF</button>
+                    </div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-toolbar flex-wrap gap-2">
+                        <div class="topbar-search sm"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="stockSummarySearch" placeholder="Search product..."></div>
+                        <select class="form-select form-select-sm w-auto" id="stockSummaryCategoryFilter"><option value="">All Categories</option></select>
+                        <label class="small text-muted mb-0 ms-2">From</label>
+                        <input type="date" class="form-control form-control-sm w-auto" id="stockSummaryFromDate">
+                        <label class="small text-muted mb-0">To</label>
+                        <input type="date" class="form-control form-control-sm w-auto" id="stockSummaryToDate">
+                        <button class="btn btn-gradient btn-sm" id="stockSummaryApplyBtn">Apply</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table stock-summary-table">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">Product</th>
+                                    <th rowspan="2">Unit</th>
+                                    <th colspan="3" class="text-center">Opening</th>
+                                    <th colspan="3" class="text-center">Inward</th>
+                                    <th colspan="3" class="text-center">Outward</th>
+                                    <th colspan="3" class="text-center">Closing</th>
+                                </tr>
+                                <tr>
+                                    <th class="text-end">Qty</th><th class="text-end">Rate</th><th class="text-end">Value</th>
+                                    <th class="text-end">Qty</th><th class="text-end">Rate</th><th class="text-end">Value</th>
+                                    <th class="text-end">Qty</th><th class="text-end">Rate</th><th class="text-end">Value</th>
+                                    <th class="text-end">Qty</th><th class="text-end">Rate</th><th class="text-end">Value</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stockSummaryTableBody"><tr><td colspan="14" class="text-center text-muted py-4">Loading...</td></tr></tbody>
+                            <tfoot id="stockSummaryTableFoot"></tfoot>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= PRODUCT LEDGER ================= -->
+            <section class="page-section d-none" id="section-product-ledger">
+                <div class="page-heading">
+                    <div><h3>Product Ledger</h3><p>Complete, read-only stock movement history for a product — every Opening Stock, Sale, Sales Return, Stock Transfer, Adjustment and Correction that ever touched its balance. Nothing on this page can be edited; every row is written automatically by the module that caused it.</p></div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-toolbar flex-wrap gap-2">
+                        <select class="form-select form-select-sm w-auto" id="productLedgerProductSelect" style="min-width:240px">
+                            <option value="">Select product...</option>
+                        </select>
+                        <select class="form-select form-select-sm w-auto" id="productLedgerLocationSelect" style="min-width:200px">
+                            <option value="">All Locations (full history)</option>
+                        </select>
+                        <button class="btn btn-gradient btn-sm" id="productLedgerLoadBtn">Show Ledger</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead>
+                                <tr>
+                                    <th>Date/Time</th><th>Voucher No</th><th>Type</th><th>Batch</th><th>Location</th>
+                                    <th class="text-end">In Qty</th><th class="text-end">Out Qty</th><th class="text-end">Balance</th>
+                                    <th class="text-end">Unit Cost</th><th class="text-end">Stock Value</th><th>By</th><th>Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody id="productLedgerTableBody">
+                                <tr><td colspan="12" class="text-center text-muted py-4">Select a product and click "Show Ledger".</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="table-pagination" id="productLedgerPagination"></div>
+                </div>
+            </section>
+
+            <!-- ================= MY STOCK LEDGER (Super Stockist / Distributor) ================= -->
+            <section class="page-section d-none" id="section-my-stock-ledger">
+                <div class="page-heading">
+                    <div><h3>Stock Ledger</h3><p>Every stock movement recorded against your own warehouse — read-only, automatically updated by every Sale, Return and Stock Transfer.</p></div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead>
+                                <tr>
+                                    <th>Date/Time</th><th>Voucher No</th><th>Type</th><th>Product</th><th>Batch</th>
+                                    <th class="text-end">In Qty</th><th class="text-end">Out Qty</th><th class="text-end">Balance</th>
+                                    <th class="text-end">Unit Cost</th><th class="text-end">Stock Value</th><th>By</th><th>Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody id="myStockLedgerTableBody">
+                                <tr><td colspan="12" class="text-center text-muted py-4">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="table-pagination" id="myStockLedgerPagination"></div>
+                </div>
+            </section>
+
+            <!-- ================= ACCOUNT LEDGER ================= -->
+            <section class="page-section d-none" id="section-account-ledger">
+                <div class="page-heading">
+                    <div><h3>Account Ledger</h3><p>Busy/Tally-style running ledger — click any voucher to see its full details.</p></div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" id="ledgerExportCsv"><i class="fa-solid fa-file-csv me-1"></i> CSV</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="ledgerExportExcel"><i class="fa-solid fa-file-excel me-1"></i> Excel</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="ledgerExportPdf"><i class="fa-solid fa-file-pdf me-1"></i> PDF</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="ledgerPrintBtn"><i class="fa-solid fa-print me-1"></i> Print</button>
+                    </div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-toolbar flex-wrap gap-2">
+                        <select class="form-select form-select-sm w-auto" id="ledgerPartySelect" style="min-width:220px">
+                            <option value="">Select account...</option>
+                        </select>
+                        <label class="small text-muted mb-0 ms-2">From</label>
+                        <input type="date" class="form-control form-control-sm w-auto" id="ledgerFromDate">
+                        <label class="small text-muted mb-0">To</label>
+                        <input type="date" class="form-control form-control-sm w-auto" id="ledgerToDate">
+                        <button class="btn btn-gradient btn-sm" id="ledgerApplyBtn">Show Ledger</button>
+                    </div>
+                    <div class="table-toolbar flex-wrap gap-2">
+                        <div class="topbar-search sm"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="ledgerSearch" placeholder="Search voucher no / narration..."></div>
+                        <select class="form-select form-select-sm w-auto" id="ledgerVoucherTypeFilter">
+                            <option value="">All Vouchers</option>
+                            <option value="Sale">Sale</option>
+                            <option value="Rcpt">Receipt</option>
+                            <option value="SRet">Sales Return</option>
+                        </select>
+                    </div>
+                    <div id="ledgerHeaderInfo" class="px-3 pb-2 small text-muted"></div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th><th>Type</th><th>Vch/Bill No</th><th>Narration</th>
+                                    <th class="text-end">Debit</th><th class="text-end">Credit</th><th class="text-end">Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ledgerTableBody">
+                                <tr><td colspan="7" class="text-center text-muted py-4">Select an account and click "Show Ledger".</td></tr>
+                            </tbody>
+                            <tfoot id="ledgerTableFoot"></tfoot>
+                        </table>
+                    </div>
+                    <div class="table-pagination" id="ledgerPagination"></div>
+                </div>
+            </section>
+
+            <!-- ================= CUSTOMER LEDGER ================= -->
+            <section class="page-section d-none" id="section-customer-ledger">
+                <div class="page-heading">
+                    <div><h3>Customer Ledger</h3><p>Running ledger for a shop (customer) — click any voucher for full details.</p></div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" id="custLedgerExportCsv"><i class="fa-solid fa-file-csv me-1"></i> CSV</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="custLedgerExportExcel"><i class="fa-solid fa-file-excel me-1"></i> Excel</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="custLedgerExportPdf"><i class="fa-solid fa-file-pdf me-1"></i> PDF</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="custLedgerPrintBtn"><i class="fa-solid fa-print me-1"></i> Print</button>
+                    </div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-toolbar flex-wrap gap-2">
+                        <select class="form-select form-select-sm w-auto" id="custLedgerPartySelect" style="min-width:220px">
+                            <option value="">Select customer...</option>
+                        </select>
+                        <label class="small text-muted mb-0 ms-2">From</label>
+                        <input type="date" class="form-control form-control-sm w-auto" id="custLedgerFromDate">
+                        <label class="small text-muted mb-0">To</label>
+                        <input type="date" class="form-control form-control-sm w-auto" id="custLedgerToDate">
+                        <button class="btn btn-gradient btn-sm" id="custLedgerApplyBtn">Show Ledger</button>
+                    </div>
+                    <div class="table-toolbar flex-wrap gap-2">
+                        <div class="topbar-search sm"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="custLedgerSearch" placeholder="Search voucher no / narration..."></div>
+                        <select class="form-select form-select-sm w-auto" id="custLedgerVoucherTypeFilter">
+                            <option value="">All Vouchers</option>
+                            <option value="Sale">Sale</option>
+                            <option value="Rcpt">Receipt</option>
+                            <option value="SRet">Sales Return</option>
+                        </select>
+                    </div>
+                    <div id="custLedgerHeaderInfo" class="px-3 pb-2 small text-muted"></div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th><th>Type</th><th>Vch/Bill No</th><th>Narration</th>
+                                    <th class="text-end">Debit</th><th class="text-end">Credit</th><th class="text-end">Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody id="custLedgerTableBody">
+                                <tr><td colspan="7" class="text-center text-muted py-4">Select a customer and click "Show Ledger".</td></tr>
+                            </tbody>
+                            <tfoot id="custLedgerTableFoot"></tfoot>
+                        </table>
+                    </div>
+                    <div class="table-pagination" id="custLedgerPagination"></div>
+                </div>
+            </section>
+
+            <!-- ================= SUPPLIER LEDGER ================= -->
+            <section class="page-section d-none" id="section-supplier-ledger">
+                <div class="page-heading">
+                    <div><h3>Supplier Ledger</h3><p>Running ledger for a distributor account — click any voucher for full details.</p></div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" id="suppLedgerExportCsv"><i class="fa-solid fa-file-csv me-1"></i> CSV</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="suppLedgerExportExcel"><i class="fa-solid fa-file-excel me-1"></i> Excel</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="suppLedgerExportPdf"><i class="fa-solid fa-file-pdf me-1"></i> PDF</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="suppLedgerPrintBtn"><i class="fa-solid fa-print me-1"></i> Print</button>
+                    </div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-toolbar flex-wrap gap-2">
+                        <select class="form-select form-select-sm w-auto" id="suppLedgerPartySelect" style="min-width:220px">
+                            <option value="">Select distributor...</option>
+                        </select>
+                        <label class="small text-muted mb-0 ms-2">From</label>
+                        <input type="date" class="form-control form-control-sm w-auto" id="suppLedgerFromDate">
+                        <label class="small text-muted mb-0">To</label>
+                        <input type="date" class="form-control form-control-sm w-auto" id="suppLedgerToDate">
+                        <button class="btn btn-gradient btn-sm" id="suppLedgerApplyBtn">Show Ledger</button>
+                    </div>
+                    <div class="table-toolbar flex-wrap gap-2">
+                        <div class="topbar-search sm"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="suppLedgerSearch" placeholder="Search voucher no / narration..."></div>
+                        <select class="form-select form-select-sm w-auto" id="suppLedgerVoucherTypeFilter">
+                            <option value="">All Vouchers</option>
+                            <option value="Sale">Sale</option>
+                            <option value="Rcpt">Receipt</option>
+                        </select>
+                    </div>
+                    <div id="suppLedgerHeaderInfo" class="px-3 pb-2 small text-muted"></div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th><th>Type</th><th>Vch/Bill No</th><th>Narration</th>
+                                    <th class="text-end">Debit</th><th class="text-end">Credit</th><th class="text-end">Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody id="suppLedgerTableBody">
+                                <tr><td colspan="7" class="text-center text-muted py-4">Select a distributor and click "Show Ledger".</td></tr>
+                            </tbody>
+                            <tfoot id="suppLedgerTableFoot"></tfoot>
+                        </table>
+                    </div>
+                    <div class="table-pagination" id="suppLedgerPagination"></div>
+                </div>
+            </section>
+
+            <!-- ================= OUTSTANDING REPORT ================= -->
+            <section class="page-section d-none" id="section-outstanding-report">
+                <div class="page-heading">
+                    <div><h3>Outstanding Report</h3><p>Every shop, distributor and super stockist with an unpaid balance.</p></div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" id="outstandingExportCsv"><i class="fa-solid fa-file-csv me-1"></i> CSV</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="outstandingExportExcel"><i class="fa-solid fa-file-excel me-1"></i> Excel</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="outstandingExportPdf"><i class="fa-solid fa-file-pdf me-1"></i> PDF</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="outstandingPrintBtn"><i class="fa-solid fa-print me-1"></i> Print</button>
+                    </div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-toolbar flex-wrap gap-2">
+                        <div class="topbar-search sm"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="outstandingSearch" placeholder="Search party, contact, mobile..."></div>
+                        <select class="form-select form-select-sm w-auto" id="outstandingPartyTypeFilter">
+                            <option value="">All Types</option>
+                            <option value="SHOP">Shop</option>
+                            <option value="DISTRIBUTOR">Distributor</option>
+                            <option value="SUPER_STOCKIST">Super Stockist</option>
+                        </select>
+                        <select class="form-select form-select-sm w-auto" id="outstandingDistrictFilter"><option value="">All Districts</option></select>
+                        <select class="form-select form-select-sm w-auto" id="outstandingSortBy">
+                            <option value="totalOutstanding">Sort: Amount</option>
+                            <option value="partyName">Sort: Name</option>
+                            <option value="district">Sort: District</option>
+                            <option value="pendingInvoiceCount">Sort: Invoice Count</option>
+                        </select>
+                        <button class="btn btn-outline-secondary btn-sm" id="outstandingSortDirBtn" title="Toggle sort direction"><i class="fa-solid fa-arrow-down-wide-short"></i></button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead>
+                                <tr>
+                                    <th>Party</th><th>Type</th><th>Contact</th><th>District</th>
+                                    <th>Products</th><th class="text-center">Pending Inv.</th><th class="text-end">Outstanding</th>
+                                </tr>
+                            </thead>
+                            <tbody id="outstandingReportTableBody"><tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr></tbody>
+                            <tfoot id="outstandingReportTableFoot"></tfoot>
+                        </table>
+                    </div>
+                    <div class="table-pagination" id="outstandingPagination"></div>
+                </div>
+            </section>
+
+            <!-- ================= CASH BOOK ================= -->
+            <section class="page-section d-none" id="section-cash-book">
+                <div class="page-heading">
+                    <div><h3>Cash Book</h3><p>Every cash receipt, with a running cash-in-hand balance.</p></div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" id="cashBookExportCsv"><i class="fa-solid fa-file-csv me-1"></i> CSV</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="cashBookExportExcel"><i class="fa-solid fa-file-excel me-1"></i> Excel</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="cashBookExportPdf"><i class="fa-solid fa-file-pdf me-1"></i> PDF</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="cashBookPrintBtn"><i class="fa-solid fa-print me-1"></i> Print</button>
+                    </div>
+                </div>
+                <div class="alert alert-warning small mb-3" role="alert">
+                    <i class="fa-solid fa-circle-info me-1"></i> This app doesn't yet record cash <em>paid out</em> (no Purchase/Expense module) — every row below is a cash receipt, so the balance only ever goes up. The Payment column is ready for when that's added.
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-toolbar flex-wrap gap-2">
+                        <div class="topbar-search sm"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="cashBookSearch" placeholder="Search party / voucher no..."></div>
+                        <label class="small text-muted mb-0 ms-2">From</label>
+                        <input type="date" class="form-control form-control-sm w-auto" id="cashBookFromDate">
+                        <label class="small text-muted mb-0">To</label>
+                        <input type="date" class="form-control form-control-sm w-auto" id="cashBookToDate">
+                        <button class="btn btn-gradient btn-sm" id="cashBookApplyBtn">Apply</button>
+                    </div>
+                    <div id="cashBookHeaderInfo" class="px-3 pb-2 small text-muted"></div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Date</th><th>Type</th><th>Vch No</th><th>Party</th><th>Method</th><th class="text-end">Receipt (Dr)</th><th class="text-end">Payment (Cr)</th><th class="text-end">Balance</th></tr></thead>
+                            <tbody id="cashBookTableBody"><tr><td colspan="8" class="text-center text-muted py-4">Loading...</td></tr></tbody>
+                            <tfoot id="cashBookTableFoot"></tfoot>
+                        </table>
+                    </div>
+                    <div class="table-pagination" id="cashBookPagination"></div>
+                </div>
+            </section>
+
+            <!-- ================= BANK BOOK ================= -->
+            <section class="page-section d-none" id="section-bank-book">
+                <div class="page-heading">
+                    <div><h3>Bank Book</h3><p>Every bank/UPI/cheque/card receipt, with a running bank balance.</p></div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" id="bankBookExportCsv"><i class="fa-solid fa-file-csv me-1"></i> CSV</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="bankBookExportExcel"><i class="fa-solid fa-file-excel me-1"></i> Excel</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="bankBookExportPdf"><i class="fa-solid fa-file-pdf me-1"></i> PDF</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="bankBookPrintBtn"><i class="fa-solid fa-print me-1"></i> Print</button>
+                    </div>
+                </div>
+                <div class="alert alert-warning small mb-3" role="alert">
+                    <i class="fa-solid fa-circle-info me-1"></i> Same as Cash Book — no bank payments-out exist yet without a Purchase/Expense module, so this only shows receipts (BANK, UPI, CHEQUE, CARD).
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-toolbar flex-wrap gap-2">
+                        <div class="topbar-search sm"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="bankBookSearch" placeholder="Search party / voucher no..."></div>
+                        <label class="small text-muted mb-0 ms-2">From</label>
+                        <input type="date" class="form-control form-control-sm w-auto" id="bankBookFromDate">
+                        <label class="small text-muted mb-0">To</label>
+                        <input type="date" class="form-control form-control-sm w-auto" id="bankBookToDate">
+                        <button class="btn btn-gradient btn-sm" id="bankBookApplyBtn">Apply</button>
+                    </div>
+                    <div id="bankBookHeaderInfo" class="px-3 pb-2 small text-muted"></div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Date</th><th>Type</th><th>Vch No</th><th>Party</th><th>Method</th><th class="text-end">Receipt (Dr)</th><th class="text-end">Payment (Cr)</th><th class="text-end">Balance</th></tr></thead>
+                            <tbody id="bankBookTableBody"><tr><td colspan="8" class="text-center text-muted py-4">Loading...</td></tr></tbody>
+                            <tfoot id="bankBookTableFoot"></tfoot>
+                        </table>
+                    </div>
+                    <div class="table-pagination" id="bankBookPagination"></div>
+                </div>
+            </section>
+
+            <!-- ================= DAY BOOK ================= -->
+            <section class="page-section d-none" id="section-day-book">
+                <div class="page-heading">
+                    <div><h3>Day Book</h3><p>Every Sale, Receipt, and Sales Return across every account, in one chronological journal.</p></div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" id="dayBookExportCsv"><i class="fa-solid fa-file-csv me-1"></i> CSV</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="dayBookExportExcel"><i class="fa-solid fa-file-excel me-1"></i> Excel</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="dayBookExportPdf"><i class="fa-solid fa-file-pdf me-1"></i> PDF</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="dayBookPrintBtn"><i class="fa-solid fa-print me-1"></i> Print</button>
+                    </div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-toolbar flex-wrap gap-2">
+                        <div class="topbar-search sm"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="dayBookSearch" placeholder="Search party / voucher no..."></div>
+                        <label class="small text-muted mb-0 ms-2">From</label>
+                        <input type="date" class="form-control form-control-sm w-auto" id="dayBookFromDate">
+                        <label class="small text-muted mb-0">To</label>
+                        <input type="date" class="form-control form-control-sm w-auto" id="dayBookToDate">
+                        <button class="btn btn-gradient btn-sm" id="dayBookApplyBtn">Apply</button>
+                    </div>
+                    <div id="dayBookHeaderInfo" class="px-3 pb-2 small text-muted"></div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Date</th><th>Type</th><th>Vch No</th><th>Party</th><th>Method</th><th class="text-end">Debit</th><th class="text-end">Credit</th></tr></thead>
+                            <tbody id="dayBookTableBody"><tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr></tbody>
+                            <tfoot id="dayBookTableFoot"></tfoot>
+                        </table>
+                    </div>
+                    <div class="table-pagination" id="dayBookPagination"></div>
+                </div>
+            </section>
+
+            <!-- ================= CATEGORIES ================= -->
+            <section class="page-section d-none" id="section-categories">
+                <div class="page-heading">
+                    <div><h3>Categories</h3><p>Organize products into categories.</p></div>
+                    <button class="btn btn-gradient btn-sm" id="addCategoryBtn"><i class="fa-solid fa-plus me-1"></i> Add Category</button>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-toolbar">
+                        <div class="topbar-search sm"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="categoriesSearch" placeholder="Search categories..."></div>
+                        <select class="form-select form-select-sm w-auto" id="categoriesStatusFilter">
+                            <option value="">All Status</option>
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Category</th><th>Description</th><th>Products</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+                            <tbody id="categoriesTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= SHOPS ================= -->
+            <section class="page-section d-none" id="section-shops">
+                <div class="page-heading">
+                    <div><h3>Shops</h3><p>Manage retail shop network and billing details.</p></div>
+                    <button class="btn btn-gradient btn-sm" id="addShopBtn"><i class="fa-solid fa-plus me-1"></i> Add Shop</button>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-toolbar">
+                        <div class="topbar-search sm"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="shopsSearch" placeholder="Search shops..."></div>
+                        <select class="form-select form-select-sm w-auto" id="shopsStatusFilter">
+                            <option value="">All Status</option>
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                        <select class="form-select form-select-sm w-auto" id="shopsDistrictFilter"><option value="">All Districts</option></select>
+                        <select class="form-select form-select-sm w-auto" id="shopsDistributorFilter"><option value="">All Distributors</option></select>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Shop</th><th>Address</th><th>GST No.</th><th>Contact</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+                            <tbody id="shopsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= INVOICES ================= -->
+            <section class="page-section d-none" id="section-invoices">
+                <div class="page-heading">
+                    <div><h3>Invoices</h3><p>Create and manage billing invoices.</p></div>
+                    <div class="toolbar-actions" id="invoiceToolbar">
+                        <button class="btn btn-gradient btn-sm" id="createInvoiceBtn" data-role-only="ADMIN,DISTRIBUTOR,SUPER_STOCKIST"><i class="fa-solid fa-plus me-1"></i> Create Invoice</button>
+                        <button class="btn btn-light btn-sm d-none" id="backToInvoicesBtn"><i class="fa-solid fa-arrow-left me-1"></i> Back</button>
+                        <button class="btn btn-soft btn-sm d-none" id="printInvoiceBtn"><i class="fa-solid fa-print me-1"></i> Print</button>
+                        <button class="btn btn-gradient btn-sm d-none" id="downloadInvoiceBtn"><i class="fa-solid fa-download me-1"></i> Download PDF</button>
+                    </div>
+                </div>
+
+                <div id="invoiceListView">
+                    <div class="glass-card table-card">
+                        <div class="table-toolbar">
+                            <div class="topbar-search sm"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="invoicesSearch" placeholder="Search invoices..."></div>
+                            <select class="form-select form-select-sm w-auto" id="invoicesStatusFilter">
+                                <option value="">All Status</option><option>Paid</option><option>Partial</option><option>Unpaid</option>
+                            </select>
+                            <select class="form-select form-select-sm w-auto" id="invoicesDistributorFilter"><option value="">All Distributors</option></select>
+                            <input type="date" class="form-control form-control-sm w-auto" id="invoicesDateFrom" title="From date">
+                            <input type="date" class="form-control form-control-sm w-auto" id="invoicesDateTo" title="To date">
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table brisk-table">
+                                <thead><tr><th>Invoice #</th><th>Shop</th><th>Date</th><th>Amount</th><th>Payment Status</th><th class="text-end">Actions</th></tr></thead>
+                                <tbody id="invoicesTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Invoice Creation Form -->
+                <div id="invoiceFormView" class="d-none">
+                    <div class="glass-card p-4">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4" id="invLevelWrap">
+                                <label class="form-label-soft">Invoice Type</label>
+                                <select class="form-select" id="invLevel">
+                                    <option value="DISTRIBUTOR_TO_SHOP">Distributor → Shop</option>
+                                    <option value="SUPER_STOCKIST_TO_DISTRIBUTOR">Super Stockist → Distributor</option>
+                                    <option value="COMPANY_TO_SUPER_STOCKIST">Company → Super Stockist</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 d-none" id="invSuperStockistWrap">
+                                <label class="form-label-soft">Super Stockist</label>
+                                <select class="form-select" id="invSuperStockist"></select>
+                            </div>
+                            <div class="col-md-4" id="invShopWrap">
+                                <label class="form-label-soft">Shop</label>
+                                <select class="form-select" id="invShop"></select>
+                            </div>
+                            <div class="col-md-4" id="invDistributorWrap">
+                                <label class="form-label-soft">Distributor</label>
+                                <select class="form-select" id="invDistributor"></select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label-soft">Invoice Date</label>
+                                <input type="date" class="form-control" id="invDate">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label-soft">PO / Ref No (optional)</label>
+                                <input type="text" class="form-control" id="invPoRefNo" placeholder="PO-2025-00123">
+                            </div>
+                        </div>
+
+                        <div class="table-responsive mb-3">
+                            <table class="table brisk-table" id="invoiceItemsTable">
+                                <thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Tax %</th><th>Total</th><th></th></tr></thead>
+                                <tbody id="invoiceItemsBody"></tbody>
+                            </table>
+                        </div>
+                        <button class="btn btn-soft btn-sm mb-4" id="addInvoiceItemBtn"><i class="fa-solid fa-plus me-1"></i> Add Item</button>
+
+                        <div class="row g-3 justify-content-end">
+                            <div class="col-md-4">
+                                <div class="d-flex justify-content-between mb-2"><span>Subtotal</span><b id="invSubtotal">₹0.00</b></div>
+                                <div class="mb-2">
+                                    <label class="form-label-soft">Discount (%)</label>
+                                    <input type="number" class="form-control" id="invDiscount" value="0" min="0" max="100">
+                                </div>
+                                <div class="d-flex justify-content-between mb-2"><span>GST</span><b id="invGst">₹0.00</b></div>
+                                <div class="d-flex justify-content-between mb-2"><span>Payment Status</span>
+                                    <select class="form-select form-select-sm w-auto" id="invPaymentStatus"><option>Unpaid</option><option>Partial</option><option>Paid</option></select>
+                                </div>
+                                <hr>
+                                <div class="d-flex justify-content-between fs-5"><span>Grand Total</span><b id="invGrandTotal">₹0.00</b></div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 justify-content-end mt-4">
+                            <button class="btn btn-light" id="cancelInvoiceBtn">Cancel</button>
+                            <button class="btn btn-gradient" id="saveInvoiceBtn"><i class="fa-solid fa-floppy-disk me-1"></i> Save Invoice</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Invoice Preview / Print -->
+                <div id="invoicePreviewView" class="d-none">
+                    <div class="p-4" id="invoicePrintArea" style="font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#fff;color:#1e293b;">
+
+                        <div class="row mb-3 pb-3" style="border-bottom:2px solid #eef1f6;">
+                            <div class="col-12 col-md-7">
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <img id="pvCompanyLogo" src="https://api.dicebear.com/7.x/shapes/svg?seed=Brisk" alt="logo" style="height:34px;object-fit:contain;">
+                                    <div>
+                                        <h5 class="fw-700 mb-0" id="pvCompanyName" style="letter-spacing:.5px;">Brisk Traders</h5>
+                                        <p class="mb-0 small text-muted">Distributor Management System</p>
+                                    </div>
+                                </div>
+                                <p class="mb-0 small text-muted" id="pvCompanyAddress"><i class="fa-solid fa-location-dot me-1"></i>--</p>
+                                <p class="mb-0 small text-muted" id="pvCompanyPhone"><i class="fa-solid fa-phone me-1"></i>--</p>
+                                <p class="mb-0 small text-muted" id="pvCompanyEmail"><i class="fa-solid fa-envelope me-1"></i>--</p>
+                                <p class="mb-0 small text-muted" id="pvCompanyWebsite"><i class="fa-solid fa-globe me-1"></i>--</p>
+                            </div>
+                            <div class="col-12 col-md-5 text-md-end mt-3 mt-md-0">
+                                <h2 class="fw-700 mb-2" style="letter-spacing:1px;">INVOICE</h2>
+                                <span class="badge" style="background:#dbeafe;color:#1d4ed8;font-size:13px;padding:6px 12px;" id="pvInvoiceNo">INV-0000</span>
+                                <div class="mt-2 small">
+                                    <div class="d-flex justify-content-between"><span class="text-muted"><i class="fa-solid fa-calendar-days me-1"></i>Invoice Date</span><b id="pvInvoiceDate">--</b></div>
+                                    <div class="d-flex justify-content-between"><span class="text-muted"><i class="fa-solid fa-calendar-days me-1"></i>Due Date</span><b id="pvDueDate">--</b></div>
+                                    <div class="d-flex justify-content-between"><span class="text-muted"><i class="fa-solid fa-file-invoice me-1"></i>Invoice Type</span><b id="pvInvoiceType">--</b></div>
+                                    <div class="d-flex justify-content-between"><span class="text-muted"><i class="fa-solid fa-coins me-1"></i>Currency</span><b>INR (₹)</b></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-12 col-md-4">
+                                <div class="p-3" style="background:#eff6ff;border-radius:8px;height:100%;">
+                                    <p class="fw-700 small mb-2" style="color:#1d4ed8;"><i class="fa-solid fa-location-dot me-1"></i>Bill To</p>
+                                    <p class="fw-700 mb-1" id="pvShopName">--</p>
+                                    <p class="small text-muted mb-1" id="pvShopAddress">--</p>
+                                    <p class="small mb-0"><i class="fa-solid fa-user me-1"></i><span id="pvShopContact">--</span></p>
+                                    <p class="small mb-0"><i class="fa-solid fa-phone me-1"></i><span id="pvShopPhone">--</span></p>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <div class="p-3" style="background:#ecfdf5;border-radius:8px;height:100%;">
+                                    <p class="fw-700 small mb-2" style="color:#15803d;"><i class="fa-solid fa-truck me-1"></i>Ship To</p>
+                                    <p class="fw-700 mb-1" id="pvShipShopName">--</p>
+                                    <p class="small text-muted mb-1" id="pvShipShopAddress">--</p>
+                                    <p class="small mb-0"><i class="fa-solid fa-user me-1"></i><span id="pvShipShopContact">--</span></p>
+                                    <p class="small mb-0"><i class="fa-solid fa-phone me-1"></i><span id="pvShipShopPhone">--</span></p>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <div class="small">
+                                    <div class="d-flex justify-content-between mb-1"><span class="text-muted"><i class="fa-solid fa-truck-fast me-1"></i>Distributor</span><b id="pvDistributor">--</b></div>
+                                    <div class="d-flex justify-content-between mb-1"><span class="text-muted"><i class="fa-solid fa-shop me-1"></i>Shop Code</span><b id="pvShopCode">--</b></div>
+                                    <div class="d-flex justify-content-between mb-1"><span class="text-muted"><i class="fa-solid fa-hashtag me-1"></i>PO / Ref No</span><b id="pvPoRefNo">--</b></div>
+                                    <div class="d-flex justify-content-between mb-1"><span class="text-muted"><i class="fa-solid fa-user-tie me-1"></i>Sales Executive</span><b id="pvSalesExec">--</b></div>
+                                    <div class="d-flex justify-content-between mb-1"><span class="text-muted"><i class="fa-solid fa-clock me-1"></i>Payment Terms</span><b id="pvPaymentTerms">--</b></div>
+                                    <div class="d-flex justify-content-between"><span class="text-muted"><i class="fa-solid fa-map me-1"></i>Place of Supply</span><b id="pvPlaceOfSupply">--</b></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive mb-3">
+                            <table class="table mb-0" style="font-size:12.5px;">
+                                <thead><tr style="background:#1d4ed8;color:#fff;">
+                                    <th class="rounded-start">#</th><th>Product Name</th><th>HSN/SKU</th><th>Qty</th><th>Unit</th><th>Unit Price (₹)</th><th>Discount (₹)</th><th>Tax (%)</th><th class="rounded-end">Amount (₹)</th>
+                                </tr></thead>
+                                <tbody id="pvItemsBody"></tbody>
+                            </table>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-12 col-md-7">
+                                <p class="fw-700 small mb-1" style="color:#1d4ed8;">Amount in Words:</p>
+                                <p class="small text-muted mb-3" id="pvAmountWords">--</p>
+                                <p class="fw-700 small mb-1" style="color:#1d4ed8;">Notes:</p>
+                                <ul class="small text-muted mb-0" id="pvTerms" style="padding-left:18px;"></ul>
+                            </div>
+                            <div class="col-12 col-md-5 mt-3 mt-md-0">
+                                <div class="small">
+                                    <div class="d-flex justify-content-between py-1"><span class="text-muted">Sub Total</span><b id="pvSubtotal">₹0.00</b></div>
+                                    <div class="d-flex justify-content-between py-1"><span class="text-muted">Discount</span><b id="pvDiscount">₹0.00</b></div>
+                                    <div class="d-flex justify-content-between py-1"><span class="text-muted">Taxable Amount</span><b id="pvTaxable">₹0.00</b></div>
+                                    <div class="d-flex justify-content-between py-1"><span class="text-muted" id="pvCgstLabel">CGST (2.5%)</span><b id="pvCgst">₹0.00</b></div>
+                                    <div class="d-flex justify-content-between py-1"><span class="text-muted" id="pvSgstLabel">SGST (2.5%)</span><b id="pvSgst">₹0.00</b></div>
+                                    <div class="d-flex justify-content-between py-2 px-2 mt-1" style="background:#dbeafe;border-radius:6px;"><span class="fw-700" style="color:#1d4ed8;">Total Amount (₹)</span><b style="color:#1d4ed8;" id="pvGrandTotal">₹0.00</b></div>
+                                    <div class="d-flex justify-content-between py-1 mt-1"><span class="text-muted">Paid Amount</span><b id="pvPaidAmount">₹0.00</b></div>
+                                    <div class="d-flex justify-content-between py-2 px-2" style="background:#dcfce7;border-radius:6px;"><span class="fw-700" style="color:#15803d;">Balance Amount (₹)</span><b style="color:#15803d;" id="pvBalanceAmount">₹0.00</b></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3 pt-3" style="border-top:1px solid #eef1f6;">
+                            <div class="col-12 col-md-4">
+                                <p class="fw-700 small mb-2" style="color:#1d4ed8;"><i class="fa-solid fa-credit-card me-1"></i>Payment Method</p>
+                                <p class="small text-muted mb-1"><i class="fa-solid fa-mobile-screen me-1"></i>UPI / GPay</p>
+                                <p class="small text-muted mb-1"><i class="fa-solid fa-building-columns me-1"></i>Bank Transfer</p>
+                                <p class="small text-muted mb-1"><i class="fa-solid fa-money-bill me-1"></i>Cash Deposit</p>
+                                <p class="small text-muted mb-0"><i class="fa-solid fa-money-check me-1"></i>Cheque</p>
+                            </div>
+                            <div class="col-12 col-md-4 text-center">
+                                <p class="fw-700 small mb-2" style="color:#15803d;"><i class="fa-solid fa-qrcode me-1"></i>Scan &amp; Pay</p>
+                                <img id="pvQrCode" src="" alt="Scan to pay" style="width:110px;height:110px;">
+                                <p class="small text-muted mb-0 mt-1">UPI ID: <span id="pvUpiId">--</span></p>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <p class="fw-700 small mb-2" style="color:#1d4ed8;"><i class="fa-solid fa-building-columns me-1"></i>Bank Details</p>
+                                <p class="small mb-0" id="pvBankDetails">--</p>
+                            </div>
+                        </div>
+
+                        <div class="text-center pt-3" style="border-top:1px solid #eef1f6;">
+                            <p class="fst-italic small text-muted mb-2">Thank you for your business!</p>
+                            <p class="small text-muted mb-0">
+                                <i class="fa-solid fa-phone me-1"></i><span id="pvFooterPhone">--</span>
+                                &nbsp;&nbsp;<i class="fa-solid fa-envelope me-1"></i><span id="pvFooterEmail">--</span>
+                                &nbsp;&nbsp;<i class="fa-solid fa-globe me-1"></i><span id="pvFooterWebsite">--</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+
+            <!-- ================= PAYMENTS ================= -->
+            <section class="page-section d-none" id="section-payments">
+                <div class="page-heading">
+                    <div><h3>Payments</h3><p>Track collections across all payment modes.</p></div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" id="paymentsPdfBtn"><i class="fa-solid fa-file-pdf me-1"></i> PDF</button>
+                        <button class="btn btn-gradient btn-sm" id="addPaymentBtn" data-role-only="ADMIN,DISTRIBUTOR,SUPER_STOCKIST"><i class="fa-solid fa-plus me-1"></i> Record Payment</button>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-1">
+                    <div class="col-6 col-xl-3"><div class="glass-card kpi-card"><div class="kpi-top-row"><div class="kpi-icon bg-mint"><i class="fa-solid fa-money-bill"></i></div><p class="kpi-label">Cash</p></div><div class="kpi-value-row"><h4 id="paymCash">₹0</h4></div></div></div>
+                    <div class="col-6 col-xl-3"><div class="glass-card kpi-card"><div class="kpi-top-row"><div class="kpi-icon bg-lavender"><i class="fa-solid fa-qrcode"></i></div><p class="kpi-label">UPI</p></div><div class="kpi-value-row"><h4 id="paymUpi">₹0</h4></div></div></div>
+                    <div class="col-6 col-xl-3"><div class="glass-card kpi-card"><div class="kpi-top-row"><div class="kpi-icon bg-peach"><i class="fa-solid fa-credit-card"></i></div><p class="kpi-label">Card</p></div><div class="kpi-value-row"><h4 id="paymCard">₹0</h4></div></div></div>
+                    <div class="col-6 col-xl-3"><div class="glass-card kpi-card"><div class="kpi-top-row"><div class="kpi-icon bg-rose"><i class="fa-solid fa-building-columns"></i></div><p class="kpi-label">Bank</p></div><div class="kpi-value-row"><h4 id="paymBank">₹0</h4></div></div></div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-lg-8">
+                        <div class="glass-card table-card">
+                            <div class="table-card-head"><h6>Payment History</h6></div>
+                            <div class="table-toolbar">
+                                <div class="topbar-search sm"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="paymentsSearch" placeholder="Search by ref / shop..."></div>
+                                <select class="form-select form-select-sm w-auto" id="paymentsStatusFilter">
+                                    <option value="">All Status</option>
+                                </select>
+                                <select class="form-select form-select-sm w-auto" id="paymentsModeFilter">
+                                    <option value="">All Modes</option>
+                                    <option value="CASH">Cash</option>
+                                    <option value="UPI">UPI</option>
+                                    <option value="CARD">Card</option>
+                                    <option value="BANK">Bank</option>
+                                </select>
+                                <input type="date" class="form-control form-control-sm w-auto" id="paymentsDateFrom" title="From date">
+                                <input type="date" class="form-control form-control-sm w-auto" id="paymentsDateTo" title="To date">
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table brisk-table">
+                                    <thead><tr><th>Ref</th><th>Shop</th><th>Mode</th><th>Amount</th><th>Date</th><th>Status</th><th>Proof</th><th class="text-end">Actions</th></tr></thead>
+                                    <tbody id="paymentsTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="glass-card table-card">
+                            <div class="table-card-head"><h6>Pending Collection</h6></div>
+                            <div id="pendingCollectionList" class="mini-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= SALES RETURNS ================= -->
+            <section class="page-section d-none" id="section-sales-returns">
+                <div class="page-heading">
+                    <div><h3>Sales Returns</h3><p>Returns can only be recorded on the 25th of each month. Monthly settlement is on the Reports page.</p></div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" id="salesReturnsPdfBtn"><i class="fa-solid fa-file-pdf me-1"></i> PDF</button>
+                        <button class="btn btn-gradient btn-sm" id="addSalesReturnBtn" data-role-only="ADMIN,DISTRIBUTOR"><i class="fa-solid fa-plus me-1"></i> New Return</button>
+                    </div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-toolbar">
+                        <div class="topbar-search sm"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="salesReturnsSearch" placeholder="Search by invoice / shop / product..."></div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>Date</th><th>Invoice #</th><th>Shop</th><th>Distributor</th><th>Product</th><th>Qty</th><th>Amount</th><th>Reason</th></tr></thead>
+                            <tbody id="salesReturnsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= REPORTS ================= -->
+            <section class="page-section d-none" id="section-reports">
+                <div class="page-heading">
+                    <div><h3>Reports</h3><p>Generate and export business reports.</p></div>
+                </div>
+
+                <div class="glass-card p-3 mb-3">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label-soft">Report Type</label>
+                            <select class="form-select" id="reportType">
+                                <option value="sales">Sales Report</option>
+                                <option value="product">Product Report</option>
+                                <option value="lowstock">Low Stock Report</option>
+                                <option value="distributor">Distributor Report</option>
+                                <option value="invoice">Invoice Report</option>
+                                <option value="payment">Payment Report</option>
+                                <option value="ledger">Account Ledger</option>
+                                <option value="stocksummary">Stock Summary (In/Out)</option>
+                                <option value="returnsettlement">Sales Return Settlement (1st–25th)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-none" id="reportSettlementMonthWrap">
+                            <label class="form-label-soft">Month</label>
+                            <select class="form-select" id="reportSettlementMonth">
+                                <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+                                <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+                                <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+                                <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-none" id="reportSettlementYearWrap">
+                            <label class="form-label-soft">Year</label>
+                            <select class="form-select" id="reportSettlementYear"></select>
+                        </div>
+                        <div class="col-md-3 d-none" id="reportLedgerAccountWrap">
+                            <label class="form-label-soft">Account (Shop)</label>
+                            <select class="form-select" id="reportLedgerAccount"><option value="">Select a shop...</option></select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label-soft">From</label>
+                            <input type="date" class="form-control" id="reportFrom">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label-soft">To</label>
+                            <input type="date" class="form-control" id="reportTo">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label-soft">Distributor</label>
+                            <select class="form-select" id="reportDistributorFilter"><option value="">All Distributors</option></select>
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-gradient w-100" id="generateReportBtn"><i class="fa-solid fa-magnifying-glass-chart me-1"></i> Generate</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card table-card">
+                    <div class="table-card-head">
+                        <h6 id="reportTitle">Sales Report</h6>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-soft btn-sm" id="exportPdfBtn"><i class="fa-solid fa-file-pdf me-1"></i> Export PDF</button>
+                            <button class="btn btn-soft btn-sm" id="exportWordBtn"><i class="fa-solid fa-file-word me-1"></i> Export Word</button>
+                            <button class="btn btn-soft btn-sm" id="exportExcelBtn"><i class="fa-solid fa-file-excel me-1"></i> Export Excel</button>
+                            <button class="btn btn-soft btn-sm" id="exportCsvBtn"><i class="fa-solid fa-file-csv me-1"></i> Export CSV</button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table" id="reportTable">
+                            <thead id="reportTableHead"></thead>
+                            <tbody id="reportTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= SALES ANALYSIS ================= -->
+            <section class="page-section d-none" id="section-sales-analysis">
+                <div class="page-heading">
+                    <div><h3>Sales Analysis</h3><p>Party-wise, Product-wise and Category-wise sales — scoped to your own network. Click a party name to drill down.</p></div>
+                </div>
+
+                <div class="glass-card table-card">
+                    <ul class="nav nav-tabs px-3 pt-3" id="salesAnalysisTabs">
+                        <li class="nav-item"><button class="nav-link active" data-tab="party" type="button">Party-wise</button></li>
+                        <li class="nav-item"><button class="nav-link" data-tab="product" type="button">Product-wise</button></li>
+                        <li class="nav-item"><button class="nav-link" data-tab="category" type="button">Category-wise</button></li>
+                    </ul>
+
+                    <div class="px-3 pt-3">
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb mb-0" id="salesAnalysisBreadcrumb"></ol>
+                        </nav>
+                    </div>
+
+                    <!-- Party-wise -->
+                    <div class="sales-analysis-tab" id="salesAnalysisTabParty">
+                        <div class="table-responsive">
+                            <table class="table brisk-table">
+                                <thead>
+                                    <tr><th>Party</th><th>Type</th><th class="text-end">Invoices</th><th class="text-end">Total Sales</th><th></th></tr>
+                                </thead>
+                                <tbody id="salesAnalysisPartyTableBody">
+                                    <tr><td colspan="5" class="text-center text-muted py-4">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Product-wise -->
+                    <div class="sales-analysis-tab d-none" id="salesAnalysisTabProduct">
+                        <div class="table-responsive">
+                            <table class="table brisk-table">
+                                <thead>
+                                    <tr><th>Product</th><th>Category</th><th class="text-end">Qty Sold</th><th class="text-end">Total Sales</th></tr>
+                                </thead>
+                                <tbody id="salesAnalysisProductTableBody">
+                                    <tr><td colspan="4" class="text-center text-muted py-4">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Category-wise -->
+                    <div class="sales-analysis-tab d-none" id="salesAnalysisTabCategory">
+                        <div class="table-responsive">
+                            <table class="table brisk-table">
+                                <thead>
+                                    <tr><th>Category</th><th class="text-end">Qty Sold</th><th class="text-end">Total Sales</th></tr>
+                                </thead>
+                                <tbody id="salesAnalysisCategoryTableBody">
+                                    <tr><td colspan="3" class="text-center text-muted py-4">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= AUDIT LOG ================= -->
+            <section class="page-section d-none" id="section-auditlog">
+                <div class="page-heading">
+                    <div><h3>Audit Log</h3><p>Every significant action across the system — login, logout, create, update, delete, approval, settings.</p></div>
+                </div>
+                <div class="glass-card table-card">
+                    <div class="table-toolbar">
+                        <div class="topbar-search sm"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="auditSearch" placeholder="Search by user, action, detail..."></div>
+                        <select class="form-select form-select-sm w-auto" id="auditEntityFilter">
+                            <option value="">All Modules</option>
+                            <option value="AUTH">Auth (Login/Logout)</option>
+                            <option value="USER">Users / Approval</option>
+                            <option value="SHOP">Shops</option>
+                            <option value="INVOICE">Invoices</option>
+                            <option value="PAYMENT">Payments</option>
+                            <option value="SETTINGS">Settings</option>
+                        </select>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table brisk-table">
+                            <thead><tr><th>When</th><th>User</th><th>Role</th><th>Action</th><th>Module</th><th>Details</th></tr></thead>
+                            <tbody id="auditLogTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Offscreen container used to render report PDFs (kept out of view, not display:none, so html2pdf can capture it) -->
+            <div class="pdf-offscreen">
+                <div id="reportPdfArea">
+                    <h4 id="reportPdfTitle">Report</h4>
+                    <p id="reportPdfMeta"></p>
+                    <table id="reportPdfTable"></table>
+                </div>
+            </div>
+
+            <!-- ================= SETTINGS ================= -->
+            <section class="page-section d-none" id="section-settings">
+                <div class="page-heading">
+                    <div><h3>Settings</h3><p id="settingsSubtitle">Configure your account and preferences.</p></div>
+                </div>
+
+                <!-- ADMIN: company configuration. Rendered ONLY for ADMIN --
+                     settingsApplyRole() REMOVES the other role's block from the
+                     DOM entirely rather than hiding it with CSS, so SS/DP never
+                     receive company fields in their page at all. -->
+                <div id="settingsAdminPane">
+
+                <div class="row g-3">
+                    <div class="col-lg-4">
+                        <div class="glass-card p-4 text-center">
+                            <p class="form-label-soft text-start">Company Logo</p>
+                            <div class="logo-upload-box">
+                                <img id="companyLogoPreview" src="https://api.dicebear.com/7.x/shapes/svg?seed=Brisk" alt="logo">
+                            </div>
+                            <label class="btn btn-soft btn-sm mt-3">
+                                <i class="fa-solid fa-upload me-1"></i> Upload Logo
+                                <input type="file" id="logoUploadInput" accept="image/*" class="d-none">
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-lg-8">
+                        <div class="glass-card p-4 mb-3">
+                            <h6 class="mb-3">Company Profile</h6>
+                            <form id="companyForm">
+                                <div class="row g-3">
+                                    <div class="col-md-6"><label class="form-label-soft">Company Name</label><input type="text" class="form-control" id="companyName" value="Brisk Traders"></div>
+                                    <div class="col-md-6"><label class="form-label-soft">GST Number</label><input type="text" class="form-control" id="companyGst" placeholder="22AAAAA0000A1Z5"></div>
+                                    <div class="col-md-6"><label class="form-label-soft">PAN Number</label><input type="text" class="form-control" id="companyPan" placeholder="AAAAA0000A"></div>
+                                    <div class="col-md-6"><label class="form-label-soft">Contact Email</label><input type="email" class="form-control" id="companyEmail"></div>
+                                    <div class="col-md-6"><label class="form-label-soft">Contact Phone</label><input type="text" class="form-control" id="companyPhone"></div>
+                                    <div class="col-md-6"><label class="form-label-soft">Website</label><input type="text" class="form-control" id="companyWebsite" placeholder="www.example.com"></div>
+                                    <div class="col-12"><label class="form-label-soft">Address</label><textarea class="form-control" id="companyAddress" rows="2"></textarea></div>
+                                    <div class="col-12"><hr class="my-1"><p class="form-label-soft mb-1">Bank Details (shown on invoices)</p></div>
+                                    <div class="col-md-6"><label class="form-label-soft">Bank Name</label><input type="text" class="form-control" id="companyBankName"></div>
+                                    <div class="col-md-6"><label class="form-label-soft">Branch</label><input type="text" class="form-control" id="companyBankBranch"></div>
+                                    <div class="col-md-6"><label class="form-label-soft">Account Number</label><input type="text" class="form-control" id="companyBankAccount"></div>
+                                    <div class="col-md-6"><label class="form-label-soft">IFSC Code</label><input type="text" class="form-control" id="companyBankIfsc"></div>
+                                    <div class="col-md-6"><label class="form-label-soft">UPI ID (for Scan &amp; Pay QR)</label><input type="text" class="form-control" id="companyUpiId" placeholder="brisk@oksbi"></div>
+                                    <div class="col-md-6"><label class="form-label-soft">Default Payment Terms (days)</label><input type="number" class="form-control" id="companyPaymentTermsDays" value="10" min="0"></div>
+                                    <div class="col-12"><label class="form-label-soft">Terms &amp; Conditions (one per line)</label><textarea class="form-control" id="companyTerms" rows="3">Goods once sold will not be taken back.
+Interest @18% p.a. will be charged if the payment is not made within the stipulated time.
+Subject to local jurisdiction.</textarea></div>
+                                </div>
+                                <button type="submit" class="btn btn-gradient mt-3"><i class="fa-solid fa-floppy-disk me-1"></i> Save Changes</button>
+                            </form>
+                        </div>
+
+                        <div class="glass-card p-4 mb-3">
+                            <h6 class="mb-3">My Profile</h6>
+                            <form id="profileForm">
+                                <div class="row g-3">
+                                    <div class="col-md-6"><label class="form-label-soft">Full Name</label><input type="text" class="form-control" id="profileFullName"></div>
+                                    <div class="col-md-6"><label class="form-label-soft">Username</label><input type="text" class="form-control" id="profileUsername" disabled></div>
+                                    <div class="col-md-6"><label class="form-label-soft">Email</label><input type="email" class="form-control" id="profileEmail"></div>
+                                    <div class="col-md-6"><label class="form-label-soft">Phone</label><input type="text" class="form-control" id="profilePhone"></div>
+                                </div>
+                                <button type="submit" class="btn btn-gradient mt-3"><i class="fa-solid fa-floppy-disk me-1"></i> Update Profile</button>
+                            </form>
+                        </div>
+
+                        <div class="glass-card p-4 mb-3">
+                            <h6 class="mb-3">Change Password</h6>
+                            <form id="changePasswordForm">
+                                <div class="row g-3">
+                                    <div class="col-md-4"><label class="form-label-soft">Current Password</label><input type="password" class="form-control" id="currentPassword"></div>
+                                    <div class="col-md-4"><label class="form-label-soft">New Password</label><input type="password" class="form-control" id="newPassword"></div>
+                                    <div class="col-md-4"><label class="form-label-soft">Confirm New Password</label><input type="password" class="form-control" id="confirmNewPassword"></div>
+                                </div>
+                                <button type="submit" class="btn btn-gradient mt-3"><i class="fa-solid fa-key me-1"></i> Change Password</button>
+                            </form>
+                        </div>
+
+                        <div class="glass-card p-4 mb-3">
+                            <h6 class="mb-3">Theme</h6>
+                            <div class="d-flex gap-3 flex-wrap" id="themeSwatches">
+                                <div class="theme-swatch active" data-theme="peach" style="background:linear-gradient(135deg,#f6c9a7,#e8a37e)"></div>
+                                <div class="theme-swatch" data-theme="mint" style="background:linear-gradient(135deg,#b8e0d2,#8fcbb0)"></div>
+                                <div class="theme-swatch" data-theme="lavender" style="background:linear-gradient(135deg,#d7c9f2,#b9a3e3)"></div>
+                                <div class="theme-swatch" data-theme="rose" style="background:linear-gradient(135deg,#f3c4d1,#e79cb4)"></div>
+                            </div>
+                        </div>
+
+                        <div class="glass-card p-4 mb-3">
+                            <h6 class="mb-3">Display Preferences</h6>
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-4">
+                                    <label class="form-label-soft">Mode</label>
+                                    <select class="form-select" id="darkModeSelect">
+                                        <option value="light">Light Mode</option>
+                                        <option value="dark">Dark Mode</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label-soft">Font Size</label>
+                                    <select class="form-select" id="fontSizeSelect">
+                                        <option value="small">Small</option>
+                                        <option value="medium" selected>Medium</option>
+                                        <option value="large">Large</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <button type="button" class="btn btn-gradient w-100" id="saveDisplayPrefsBtn"><i class="fa-solid fa-floppy-disk me-1"></i> Save Preferences</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="glass-card p-4">
+                            <h6 class="mb-3">Profile Photo</h6>
+                            <div class="d-flex align-items-center gap-3">
+                                <img id="profilePhotoPreview" src="" alt="profile" class="rounded-circle" style="width:64px;height:64px;object-fit:cover;display:none;">
+                                <i id="profilePhotoPlaceholder" class="fa-solid fa-circle-user fs-1 text-muted"></i>
+                                <label class="btn btn-soft btn-sm">
+                                    <i class="fa-solid fa-upload me-1"></i> Upload Photo
+                                    <input type="file" id="profilePhotoInput" accept="image/*" class="d-none">
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+
+                <!-- SUPER STOCKIST / DISTRIBUTOR: personal account settings only.
+                     No company/GST/PAN/bank/UPI/terms fields exist in this block. -->
+                <div id="settingsPersonalPane">
+                    <div class="row g-3">
+                        <div class="col-lg-4">
+                            <div class="glass-card p-4 text-center">
+                                <p class="form-label-soft text-start">Profile Photo</p>
+                                <div class="logo-upload-box">
+                                    <img id="meAvatarPreview" src="https://api.dicebear.com/7.x/initials/svg?seed=User" alt="avatar">
+                                </div>
+                                <label class="btn btn-soft btn-sm mt-3">
+                                    <i class="fa-solid fa-upload me-1"></i> Upload Photo
+                                    <input type="file" id="meAvatarInput" accept="image/*" class="d-none">
+                                </label>
+                            </div>
+
+                            <div class="glass-card p-4 mt-3">
+                                <h6 class="fw-700 mb-3"><i class="fa-solid fa-palette me-2"></i>Appearance</h6>
+                                <label class="form-label-soft">Theme</label>
+                                <select class="form-select" id="meTheme">
+                                    <option value="light">Light</option>
+                                    <option value="dark">Dark</option>
+                                </select>
+                                <label class="form-label-soft mt-3">Font Size</label>
+                                <select class="form-select" id="meFontSize">
+                                    <option value="small">Small</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="large">Large</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-8">
+                            <div class="glass-card p-4">
+                                <h6 class="fw-700 mb-3"><i class="fa-solid fa-user me-2"></i>Profile</h6>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label-soft">Full Name</label>
+                                        <input type="text" class="form-control" id="meFullName">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label-soft">Username</label>
+                                        <input type="text" class="form-control" id="meUsername" disabled>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label-soft">Email</label>
+                                        <input type="email" class="form-control" id="meEmail">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label-soft">Mobile Number</label>
+                                        <input type="text" class="form-control" id="meMobile">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label-soft">Role</label>
+                                        <input type="text" class="form-control" id="meRole" disabled>
+                                    </div>
+                                </div>
+                                <button class="btn btn-gradient mt-3" id="meSaveProfileBtn"><i class="fa-solid fa-floppy-disk me-1"></i> Save Profile</button>
+                            </div>
+
+                            <div class="glass-card p-4 mt-3">
+                                <h6 class="fw-700 mb-3"><i class="fa-solid fa-lock me-2"></i>Security</h6>
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label-soft">Current Password</label>
+                                        <input type="password" class="form-control" id="meCurrentPassword" autocomplete="current-password">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label-soft">New Password</label>
+                                        <input type="password" class="form-control" id="meNewPassword" autocomplete="new-password">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label-soft">Confirm New Password</label>
+                                        <input type="password" class="form-control" id="meConfirmPassword" autocomplete="new-password">
+                                    </div>
+                                </div>
+                                <button class="btn btn-gradient mt-3" id="meChangePasswordBtn"><i class="fa-solid fa-key me-1"></i> Change Password</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <footer class="app-footer">
+            <p>&copy; 2026 Brisk DMS. Crafted for modern distribution businesses.</p>
+        </footer>
+    </div>
+</div>
+
+<!-- ===================== GENERIC CRUD MODAL ===================== -->
+<div class="modal fade" id="crudModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-600" id="crudModalTitle">Add Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="crudForm">
+                    <div class="row g-3" id="crudFormFields"></div>
+                    <div id="crudProductImageSection" class="d-none mt-3">
+                        <label class="form-label-soft">Product Image</label>
+                        <div class="d-flex align-items-center gap-3">
+                            <img id="crudProductImagePreview" src="" alt="" style="width:56px;height:56px;border-radius:10px;object-fit:cover;display:none;">
+                            <input type="file" id="crudProductImageInput" class="form-control" accept="image/jpeg,image/png,image/webp" style="max-width:280px">
+                            <button type="button" class="btn btn-light btn-sm" id="crudProductImageUploadBtn"><i class="fa-solid fa-upload me-1"></i> Upload</button>
+                        </div>
+                        <div class="form-text" style="font-size:11px">JPEG, PNG or WEBP, up to 5 MB. Uploads immediately and replaces any existing image.</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-0">
+                <button class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-gradient" id="crudSaveBtn"><i class="fa-solid fa-floppy-disk me-1"></i> Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== PROFILE VIEW MODAL ===================== -->
+<div class="modal fade" id="profileModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-600">User Profile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center" id="profileModalBody"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== PRODUCT PARTNER PRICING MODAL ===================== -->
+<div class="modal fade" id="productPricingModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-600">Per-Partner Pricing — <span id="productPricingModalName"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="nav nav-tabs mb-3" role="tablist">
+                    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#pricingSsTab" type="button">Super Stockists (SS Price)</button></li>
+                    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#pricingDistTab" type="button">Distributors (DP)</button></li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="pricingSsTab">
+                        <div class="table-responsive">
+                            <table class="table brisk-table">
+                                <thead><tr><th>Super Stockist</th><th>Price (₹)</th><th></th></tr></thead>
+                                <tbody id="pricingSsBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="pricingDistTab">
+                        <div class="table-responsive">
+                            <table class="table brisk-table">
+                                <thead><tr><th>Distributor</th><th>Price (₹)</th><th></th></tr></thead>
+                                <tbody id="pricingDistBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-muted small mt-2 mb-0">Leave a row at the default value (shown greyed) to use the product's standard price — type a custom amount and click Save to override it just for that partner.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== NEW SALES RETURN MODAL ===================== -->
+<div class="modal fade" id="purchaseReturnModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-600">New Purchase Return</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-3" id="prReturnToHint"></p>
+
+                <div class="mb-3">
+                    <label class="form-label-soft">Product <span class="text-danger">*</span></label>
+                    <select class="form-select" id="prProduct"></select>
+                    <div class="invalid-feedback d-block small text-danger" id="prProductError"></div>
+                </div>
+
+                <!-- Read-only facts pulled from the selected product's real
+                     stock row; never typed by the user. -->
+                <div class="row g-2 mb-3" id="prProductFacts">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label-soft">Code</label>
+                        <input type="text" class="form-control form-control-sm" id="prCode" disabled>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label-soft">MRP</label>
+                        <input type="text" class="form-control form-control-sm" id="prMrp" disabled>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label-soft" id="prUnitPriceLabel">DP Price</label>
+                        <input type="text" class="form-control form-control-sm" id="prUnitPriceView" disabled>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label-soft">Available</label>
+                        <input type="text" class="form-control form-control-sm" id="prAvailable" disabled>
+                    </div>
+                </div>
+
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <label class="form-label-soft">Quantity <span class="text-danger">*</span></label>
+                        <input type="number" min="1" step="1" class="form-control" id="prQuantity" value="1">
+                        <div class="small text-danger" id="prQuantityError"></div>
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label-soft" id="prTotalLabel">Total Price (₹)</label>
+                        <input type="text" class="form-control fw-700" id="prTotal" disabled>
+                        <div class="form-text" id="prTotalFormula">Quantity × your rate. The rate is set by your admin and applied automatically.</div>
+                    </div>
+                </div>
+
+                <div class="row g-2 mt-1">
+                    <div class="col-md-5">
+                        <label class="form-label-soft">Reason <span class="text-danger">*</span></label>
+                        <select class="form-select" id="prReasonCode">
+                            <option value="">Select a reason…</option>
+                            <option value="DAMAGED">Damaged</option>
+                            <option value="EXPIRED">Expired</option>
+                            <option value="WRONG_ITEM">Wrong Item</option>
+                            <option value="OTHERS">Others</option>
+                        </select>
+                        <div class="small text-danger" id="prReasonError"></div>
+                    </div>
+                    <div class="col-md-7 d-none" id="prReasonNoteWrap">
+                        <label class="form-label-soft">Please specify <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="prReasonNote" maxlength="500" placeholder="Describe the reason">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-gradient" id="prSubmitBtn">Save Return</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="ssDistributorShopsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-600" id="ssDistributorShopsTitle">Shops</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table brisk-table">
+                        <thead><tr><th>Shop</th><th>City</th><th>Contact</th><th>Status</th></tr></thead>
+                        <tbody id="ssDistributorShopsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="salesReturnModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-600">New Sales Return</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label-soft">Invoice</label>
+                    <select class="form-select" id="srInvoice"></select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label-soft">Product (sold on this invoice)</label>
+                    <select class="form-select" id="srProduct"></select>
+                </div>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <label class="form-label-soft">Return Quantity</label>
+                        <input type="number" min="1" class="form-control" id="srQuantity" value="1">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label-soft">Return Date (locked to today)</label>
+                        <input type="date" class="form-control" id="srReturnDate" disabled>
+                        <div class="form-text" id="srDateHint"></div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <label class="form-label-soft">Reason</label>
+                    <textarea class="form-control" id="srReason" rows="2" placeholder="Damaged, expired, wrong item, etc."></textarea>
+                </div>
+                <div class="mt-3">
+                    <label class="form-label-soft">Confirm Your Password</label>
+                    <input type="password" class="form-control" id="srConfirmPassword" autocomplete="current-password">
+                    <div class="form-text">Sales returns reverse a sale and adjust stock — re-enter your login password to confirm.</div>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-gradient" id="srSubmitBtn">Save Return</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ===================== PAYMENT DETAILS MODAL ===================== -->
+<div class="modal fade" id="paymentDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-600">Payment Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="paymentDetailsBody"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== OUTSTANDING DETAILS MODAL ===================== -->
+<div class="modal fade" id="outstandingDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-600">Outstanding — Who Owes What</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Party</th>
+                                <th>Type</th>
+                                <th>Contact</th>
+                                <th>District</th>
+                                <th>Products</th>
+                                <th>Pending Invoices</th>
+                                <th class="text-end">Total Outstanding</th>
+                            </tr>
+                        </thead>
+                        <tbody id="outstandingDetailsBody">
+                            <tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== VOUCHER DETAILS MODAL (Busy-style ledger drill-down) ===================== -->
+<div class="modal fade" id="voucherDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-600" id="voucherDetailsTitle">Voucher Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="voucherDetailsBody">
+                <div class="text-center text-muted py-4">Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== STOCK ENTRY (INWARD) MODAL ===================== -->
+<div class="modal fade" id="stockEntryModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-600">Stock Entry (Inward)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="stockEntryForm">
+                    <div class="mb-3">
+                        <label class="form-label">Product</label>
+                        <select class="form-select" id="stockEntryProduct" required>
+                            <option value="">Select product...</option>
+                        </select>
+                        <div class="form-text" id="stockEntryCurrentStock"></div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label">Quantity In</label>
+                            <input type="number" step="0.001" min="0.001" class="form-control" id="stockEntryQuantity" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Rate (₹) <span class="text-muted small">(optional)</span></label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="stockEntryRate" placeholder="Uses purchase price if blank">
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label">Remarks <span class="text-muted small">(optional)</span></label>
+                        <input type="text" class="form-control" id="stockEntryRemarks" placeholder="e.g. Purchase from XYZ Suppliers">
+                    </div>
+                    <div class="mt-4 d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-gradient" id="stockEntrySubmitBtn">Add Stock</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== PROOF IMAGE PREVIEW MODAL ===================== -->
+<div class="modal fade" id="proofPreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-600">Payment Proof</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="proofPreviewImage" src="" alt="Payment proof" style="max-width:100%; border-radius:12px; border:1px solid var(--border-color);">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

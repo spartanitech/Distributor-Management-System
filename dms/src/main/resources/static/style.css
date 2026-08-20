@@ -1,0 +1,835 @@
+/* ==========================================================================
+   BRISK DMS — CUSTOM STYLESHEET
+   Sections: Variables, Base, Auth Screens, Layout/Sidebar, Topbar,
+             Cards & Glassmorphism, Tables, Buttons/Forms, KPI/Charts,
+             Notifications/Toasts/Modals, Utilities, Responsive
+   ========================================================================== */
+
+/* Fallback: page-section show/hide depends on this rule. Bootstrap (CDN)
+   normally defines it, but if the CDN is unreachable it silently no-ops
+   and every .page-section stacks visibly on every tab. Defining it here
+   locally guarantees section switching works even offline / CDN-blocked. */
+.d-none{ display:none !important; }
+
+/* ---------------- 1. THEME VARIABLES ---------------- */
+:root{
+    --bg-soft:#f7f5f2;
+    --bg-soft-2:#eef1f5;
+    --accent:#e8a37e;         /* peach */
+    --accent-dark:#d98a5f;
+    --accent-mint:#8fcbb0;
+    --accent-lavender:#b9a3e3;
+    --accent-rose:#e79cb4;
+    --text-main:#26262b;
+    --text-muted:#7a7a85;
+    --glass-bg:rgba(255,255,255,0.55);
+    --glass-border:rgba(255,255,255,0.6);
+    --glass-shadow:0 8px 32px rgba(31,38,68,0.08);
+    --radius-lg:22px;
+    --radius-md:16px;
+    --radius-sm:10px;
+    --sidebar-w:250px;
+    --sidebar-w-collapsed:84px;
+}
+
+[data-theme="mint"]{ --accent:#8fcbb0; --accent-dark:#6fb193; }
+[data-theme="lavender"]{ --accent:#b9a3e3; --accent-dark:#9a7fd1; }
+[data-theme="rose"]{ --accent:#e79cb4; --accent-dark:#d97a9a; }
+
+body.dark-mode{
+    --bg-soft:#171821;
+    --bg-soft-2:#1e1f2b;
+    --text-main:#eceef5;
+    --text-muted:#9799ab;
+    --glass-bg:rgba(35,36,50,0.55);
+    --glass-border:rgba(255,255,255,0.08);
+    --glass-shadow:0 8px 32px rgba(0,0,0,0.35);
+}
+
+/* ---------------- 2. BASE ---------------- */
+*{ box-sizing:border-box; }
+html{ overflow-x:hidden; }
+body{
+    font-family:'Poppins', sans-serif;
+    background:var(--bg-soft);
+    color:var(--text-main);
+    transition:background .35s ease, color .35s ease;
+    min-height:100vh;
+    overflow-x:hidden;
+}
+h1,h2,h3,h4,h5,h6{ font-weight:600; letter-spacing:-0.02em; }
+p{ color:var(--text-muted); margin-bottom:0; }
+a{ text-decoration:none; }
+.fw-600{ font-weight:600; } .fw-700{ font-weight:700; }
+::selection{ background:var(--accent); color:#fff; }
+
+/* scrollbar */
+::-webkit-scrollbar{ width:8px; height:8px; }
+::-webkit-scrollbar-thumb{ background:rgba(0,0,0,0.15); border-radius:10px; }
+::-webkit-scrollbar-thumb:hover{ background:rgba(0,0,0,0.25); }
+
+/* ---------------- 3. GLASSMORPHISM CARD ---------------- */
+.glass-card{
+    background:var(--glass-bg);
+    border:1px solid var(--glass-border);
+    border-radius:var(--radius-lg);
+    box-shadow:var(--glass-shadow);
+    backdrop-filter:blur(18px) saturate(160%);
+    -webkit-backdrop-filter:blur(18px) saturate(160%);
+}
+
+/* ---------------- 4. AUTH SCREENS ---------------- */
+.auth-wrapper{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    overflow:hidden;
+    background:linear-gradient(160deg,#faf7f3 0%, #f0e9f7 50%, #eaf5f0 100%);
+    padding:24px;
+}
+
+/* ---- Signature element: the distributor network scene ----
+   Now a full-viewport background layer so the graphic sits dead-center
+   behind the login card at every screen size. */
+.auth-scene{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    z-index:1;
+    background:radial-gradient(120% 120% at 50% 50%, #232744 0%, #14162a 55%, #0d0e1c 100%);
+    overflow:hidden;
+}
+.network-svg{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    z-index:1;
+}
+.route{
+    stroke:rgba(232,163,126,.28);
+    stroke-dasharray:2 10;
+    animation:routeFlow 6s linear infinite;
+}
+.node{ fill:#f4f1ea; }
+.node.hub{
+    fill:var(--accent);
+    animation:hubPulse 3.2s ease-in-out infinite;
+}
+.node.shop{
+    fill:#dfe3f5;
+    animation:shopBlink 4s ease-in-out infinite;
+}
+.node.shop:nth-of-type(2){ animation-delay:-1s; }
+.node.shop:nth-of-type(3){ animation-delay:-2s; }
+.node.shop:nth-of-type(4){ animation-delay:-2.6s; }
+.node.shop:nth-of-type(5){ animation-delay:-1.6s; }
+.node.shop:nth-of-type(6){ animation-delay:-3s; }
+.node-icon{ pointer-events:none; }
+.pulse{ fill:var(--accent-mint); filter:drop-shadow(0 0 4px rgba(143,203,176,.9)); }
+@keyframes routeFlow{ to{ stroke-dashoffset:-120; } }
+@keyframes hubPulse{
+    0%,100%{ r:15; opacity:1; }
+    50%{ r:18; opacity:.85; }
+}
+@keyframes shopBlink{
+    0%,100%{ opacity:.55; }
+    50%{ opacity:1; }
+}
+.auth-card{
+    width:100%;
+    max-width:460px;
+    padding:44px 40px;
+    position:relative;
+    z-index:2;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin:0 auto;
+    animation:cardEnter .6s cubic-bezier(.2,.8,.2,1);
+}
+.auth-card > .auth-form-panel{ width:100%; }
+@keyframes cardEnter{
+    from{ opacity:0; transform:translateY(24px) scale(.98); }
+    to{ opacity:1; transform:translateY(0) scale(1); }
+}
+
+/* ---- Admin / Distributor role tabs ---- */
+.role-tabs{
+    display:flex;
+    gap:6px;
+    background:rgba(0,0,0,0.045);
+    border-radius:14px;
+    padding:5px;
+    margin-bottom:24px;
+}
+body.dark-mode .role-tabs{ background:rgba(255,255,255,0.06); }
+.role-tab{
+    flex:1;
+    border:none;
+    background:transparent;
+    color:var(--text-muted);
+    font-weight:600;
+    font-size:13.5px;
+    padding:10px 12px;
+    border-radius:10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    cursor:pointer;
+    transition:.2s;
+}
+.role-tab:hover{ color:var(--text-main); }
+.role-tab.active{
+    background:linear-gradient(135deg, var(--accent), var(--accent-dark));
+    color:#fff;
+    box-shadow:0 6px 16px rgba(232,163,126,.35);
+}
+
+@media (max-width: 900px){
+    .auth-card{ max-width:440px; padding:36px 24px; }
+}
+@media (prefers-reduced-motion: reduce){
+    .route, .node.hub, .node.shop{ animation:none; }
+    .pulse{ display:none; }
+}
+.auth-brand{ text-align:center; margin-bottom:26px; }
+.brand-icon{
+    width:56px; height:56px; margin:0 auto 12px;
+    border-radius:16px;
+    background:linear-gradient(135deg, var(--accent), var(--accent-dark));
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:22px;
+    box-shadow:0 10px 24px rgba(232,163,126,.4);
+}
+.brand-icon.small{ width:38px; height:38px; font-size:16px; border-radius:12px; margin:0; }
+.auth-brand h2{ margin-bottom:2px; font-weight:700; }
+.auth-brand h2 span{ color:var(--accent-dark); }
+.auth-brand p{ font-size:13px; }
+
+.form-title{ font-weight:700; margin-bottom:2px; }
+.form-sub{ font-size:13px; margin-bottom:22px; }
+
+.input-floating{ position:relative; }
+.input-floating .input-icon{
+    position:absolute; left:16px; top:50%; transform:translateY(-50%);
+    color:var(--text-muted); font-size:14px;
+}
+.input-floating .form-control{ padding-left:42px; }
+.toggle-eye{ position:absolute; right:16px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--text-muted); font-size:13px; }
+
+.form-control, .form-select{
+    border-radius:12px;
+    border:1.5px solid rgba(0,0,0,0.08);
+    background:rgba(255,255,255,0.7);
+    padding:11px 14px;
+    font-size:14px;
+    color:var(--text-main);
+    transition:.2s;
+}
+body.dark-mode .form-control, body.dark-mode .form-select{ background:rgba(255,255,255,0.05); color:var(--text-main); border-color:rgba(255,255,255,0.1); }
+.form-control:focus, .form-select:focus{
+    border-color:var(--accent);
+    box-shadow:0 0 0 4px rgba(232,163,126,.18);
+    background:#fff;
+}
+.form-label-soft{ font-size:12.5px; font-weight:600; color:var(--text-muted); margin-bottom:6px; display:block; text-transform:uppercase; letter-spacing:.04em; }
+
+.link-soft{ color:var(--accent-dark); font-weight:600; }
+.switch-text{ text-align:center; margin-top:18px; font-size:13.5px; }
+.switch-text a{ color:var(--accent-dark); font-weight:600; }
+
+/* buttons */
+.btn{ border-radius:12px; font-weight:500; font-size:14px; }
+.btn-gradient{
+    background:linear-gradient(135deg, var(--accent), var(--accent-dark));
+    color:#fff; border:none; padding:11px 22px;
+    box-shadow:0 8px 20px rgba(232,163,126,.35);
+    transition:transform .18s ease, box-shadow .18s ease;
+}
+.btn-gradient:hover{ transform:translateY(-2px); box-shadow:0 12px 26px rgba(232,163,126,.45); color:#fff; }
+.btn-soft{ background:rgba(0,0,0,0.05); color:var(--text-main); border:none; }
+.btn-soft:hover{ background:rgba(0,0,0,0.09); color:var(--text-main); }
+body.dark-mode .btn-soft{ background:rgba(255,255,255,0.08); color:var(--text-main); }
+.btn-danger-soft{ background:#f6d3d3; color:#b03434; border:none; }
+.btn-danger-soft:hover{ background:#f2bcbc; color:#8a2323; }
+.btn-light{ border-radius:12px; }
+
+/* ---------------- 5. APP LAYOUT ---------------- */
+.app-wrapper{ display:flex; min-height:100vh; }
+
+.sidebar{
+    width:var(--sidebar-w);
+    background:var(--glass-bg);
+    border-right:1px solid var(--glass-border);
+    backdrop-filter:blur(18px);
+    display:flex; flex-direction:column;
+    position:fixed; top:0; left:0; bottom:0;
+    z-index:1030;
+    transition:width .3s ease, transform .3s ease;
+}
+.sidebar.collapsed{ width:var(--sidebar-w-collapsed); }
+.sidebar.collapsed .brand-text, .sidebar.collapsed .nav-link span{ display:none; }
+.sidebar.collapsed .sidebar-collapse-btn i{ transform:rotate(180deg); }
+
+.sidebar-brand{
+    display:flex; align-items:center; gap:10px;
+    padding:22px 20px; position:relative;
+}
+.brand-text{ font-weight:700; font-size:17px; white-space:nowrap; }
+.brand-text b{ color:var(--accent-dark); }
+.sidebar-collapse-btn{
+    margin-left:auto; border:none; background:rgba(0,0,0,0.05);
+    width:26px; height:26px; border-radius:8px; align-items:center; justify-content:center;
+    font-size:11px; color:var(--text-muted);
+}
+
+.sidebar-nav{ flex:1; padding:10px 14px; overflow-y:auto; }
+.nav-link{
+    display:flex; align-items:center; gap:12px;
+    padding:11px 14px; margin-bottom:4px;
+    border-radius:12px; color:var(--text-muted);
+    font-size:14px; font-weight:500;
+    transition:.18s;
+    white-space:nowrap;
+}
+.nav-link i{ width:18px; text-align:center; font-size:15px; }
+.nav-link:hover{ background:rgba(0,0,0,0.05); color:var(--text-main); }
+.nav-link.active{
+    background:linear-gradient(135deg, var(--accent), var(--accent-dark));
+    color:#fff;
+    box-shadow:0 8px 18px rgba(232,163,126,.35);
+}
+.sidebar-footer{ padding:14px; border-top:1px solid rgba(0,0,0,0.06); }
+.logout-link{ color:#c1554f; }
+
+/* ---------------- Collapsible sidebar groups ---------------- */
+.nav-group{ margin-bottom:2px; }
+.nav-group-toggle{
+    display:flex; align-items:center; gap:12px; width:100%;
+    padding:11px 14px; margin-bottom:2px;
+    border:none; background:none; border-radius:12px;
+    color:var(--text-muted); font-size:14px; font-weight:500;
+    text-align:left; cursor:pointer; transition:.18s;
+    white-space:nowrap;
+}
+.nav-group-toggle:hover{ background:rgba(0,0,0,0.05); color:var(--text-main); }
+.nav-group-icon{ width:18px; text-align:center; font-size:15px; flex-shrink:0; }
+.nav-group-label{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.nav-group-arrow{ font-size:11px; flex-shrink:0; transition:transform .2s ease; }
+.nav-group.open > .nav-group-toggle .nav-group-arrow{ transform:rotate(90deg); }
+/* Parent group highlighted when one of its submenu items is the active page */
+.nav-group.has-active > .nav-group-toggle{
+    color:var(--accent-dark); font-weight:600;
+}
+
+.nav-submenu{
+    max-height:0; overflow:hidden;
+    transition:max-height .28s ease;
+    padding-left:14px;
+    border-left:2px solid rgba(0,0,0,0.06);
+    margin-left:20px;
+}
+.nav-group.open > .nav-submenu{ max-height:600px; }
+.nav-submenu .nav-link{ padding:9px 12px; font-size:13.5px; }
+
+/* Collapsed sidebar (icon-only rail): dropdowns don't make sense at that
+   width, so fall back to a flat icon list instead of hiding these pages. */
+.sidebar.collapsed .nav-group-label,
+.sidebar.collapsed .nav-group-arrow{ display:none; }
+.sidebar.collapsed .nav-submenu{ max-height:none !important; padding-left:0; margin-left:0; border-left:none; }
+.sidebar.collapsed .nav-group.open > .nav-submenu{ max-height:none; }
+
+.sidebar-overlay{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:1020;
+}
+
+/* Stock Summary — two-row grouped header (Opening/Inward/Outward/Closing,
+   each spanning Qty/Rate/Value) */
+.stock-summary-table thead th{ white-space:nowrap; font-size:12px; }
+.stock-summary-table tbody td, .stock-summary-table tfoot td{ font-size:13px; white-space:nowrap; }
+.stock-summary-table tfoot td{ border-top:2px solid var(--border-color); background:rgba(0,0,0,0.02); }
+
+.main-content{
+    margin-left:var(--sidebar-w);
+    flex:1; min-width:0;
+    display:flex; flex-direction:column;
+    transition:margin-left .3s ease;
+}
+.main-content.expanded{ margin-left:var(--sidebar-w-collapsed); }
+
+/* ---------------- 6. TOPBAR ---------------- */
+.topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 28px;
+    position:sticky; top:0; z-index:1010;
+    background:var(--bg-soft);
+    border-bottom:1px solid rgba(0,0,0,0.05);
+}
+.topbar-search{
+    display:flex; align-items:center; gap:10px;
+    background:rgba(0,0,0,0.045);
+    border-radius:12px; padding:9px 16px;
+    min-width:280px;
+}
+.topbar-search.sm{ min-width:220px; }
+.topbar-search i{ color:var(--text-muted); font-size:13px; }
+.topbar-search input{ border:none; background:transparent; outline:none; font-size:13.5px; width:100%; color:var(--text-main); }
+
+.icon-btn{
+    width:40px; height:40px; border-radius:12px; border:none;
+    background:rgba(0,0,0,0.045); color:var(--text-main);
+    display:flex; align-items:center; justify-content:center;
+    font-size:15px; transition:.18s;
+}
+.icon-btn:hover{ background:rgba(0,0,0,0.08); }
+.notif-dot{
+    position:absolute; top:4px; right:4px;
+    background:var(--accent-rose); color:#fff; font-size:9px; font-weight:700;
+    width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+}
+
+.user-chip{
+    display:flex; align-items:center; gap:10px; border:none; background:transparent;
+    padding:4px 10px; border-radius:14px;
+}
+.user-chip:hover{ background:rgba(0,0,0,0.045); }
+.user-chip img{ width:36px; height:36px; border-radius:50%; }
+.user-chip-name{ font-size:13.5px; font-weight:600; }
+.user-chip-role{ font-size:11px; color:var(--text-muted); }
+
+.notif-dropdown{ width:320px; padding:0; overflow:hidden; }
+.notif-header{ padding:14px 18px; font-weight:600; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(0,0,0,0.06); }
+.badge-soft{ background:rgba(232,163,126,.2); color:var(--accent-dark); font-size:11px; padding:3px 9px; border-radius:20px; font-weight:600; }
+.notif-item{ display:flex; gap:12px; padding:12px 18px; border-bottom:1px solid rgba(0,0,0,0.04); }
+.notif-item i{ font-size:16px; margin-top:2px; }
+.notif-item b{ font-size:13px; display:block; }
+.notif-item p{ font-size:12px; margin:0; }
+.notif-footer{ text-align:center; padding:10px; }
+.notif-footer a{ font-size:13px; color:var(--accent-dark); font-weight:600; }
+
+/* ---------------- 7. PAGE CONTENT ---------------- */
+.page-content{ padding:26px 28px 40px; flex:1; }
+.page-heading{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:20px; gap:12px; flex-wrap:wrap;
+}
+.page-heading h3{ margin-bottom:2px; }
+.page-heading p{ font-size:13.5px; }
+
+.page-section{ animation:sectionFade .4s ease; }
+@keyframes sectionFade{ from{ opacity:0; transform:translateY(10px);} to{ opacity:1; transform:translateY(0);} }
+
+/* KPI cards */
+.kpi-card{ display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; gap:10px; padding:18px; height:100%; min-height:112px; overflow:hidden; }
+.kpi-top-row{ display:flex; align-items:center; gap:10px; width:100%; min-width:0; }
+/* kpi-icon-badge was used on all 25 dashboard KPI icons but had NO rule
+   in this stylesheet, so those icons rendered as unstyled inline <span>s:
+   no size, no centring, no shrink protection. That is what made the KPI
+   cards look misaligned and let the value spill out of the card. It is a
+   modifier on .kpi-icon, so it only needs to guarantee the box behaves
+   as a fixed-size, non-shrinking flex container. */
+.kpi-icon-badge{
+    display:inline-flex; align-items:center; justify-content:center;
+    flex-shrink:0; width:44px; height:44px; border-radius:12px;
+    font-size:17px; color:#fff; line-height:1;
+}
+.kpi-value-row{ display:flex; align-items:baseline; gap:8px; width:100%; min-width:0; }
+.kpi-link-wrap{ display:block; text-decoration:none; color:inherit; height:100%; }
+.kpi-card-clickable{ cursor:pointer; transition:transform .15s ease, box-shadow .15s ease; }
+.kpi-card-clickable:hover{ transform:translateY(-3px); box-shadow:0 10px 24px rgba(0,0,0,0.08); }
+.kpi-icon{ width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:17px; color:#fff; flex-shrink:0; }
+.bg-peach{ background:linear-gradient(135deg,#f6c9a7,#e8a37e); }
+.bg-mint{ background:linear-gradient(135deg,#b8e0d2,#8fcbb0); }
+.bg-lavender{ background:linear-gradient(135deg,#d7c9f2,#b9a3e3); }
+.bg-rose{ background:linear-gradient(135deg,#f3c4d1,#e79cb4); }
+.kpi-label{
+    font-size:11.5px; margin-bottom:0; text-transform:uppercase; letter-spacing:.02em;
+    line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    min-width:0; flex:1;
+}
+.kpi-card h4, .kpi-card .kpi-value-row h5{
+    margin-bottom:0; font-weight:700; font-size:1.2rem; line-height:1.2;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;
+}
+.kpi-trend{ font-size:11.5px; font-weight:600; white-space:nowrap; flex-shrink:0; }
+.kpi-trend.up{ color:#3d9a6e; }
+.kpi-trend.down{ color:#c1554f; }
+
+@media (max-width: 576px){
+    .kpi-label{ white-space:normal; }
+}
+
+/* chart cards */
+/* .chart-card sets height:100%, but a Bootstrap .col-* is a block by
+   default -- 100% of an auto-height block is just the content height, so
+   two chart cards in the same row ended up different heights whenever one
+   had a taller head (e.g. the range <select>) or fewer legend rows.
+   Making the column a flex container gives the card a real height to
+   fill, so cards in a row always line up. */
+.chart-card{ padding:20px; height:100%; display:flex; flex-direction:column; }
+.chart-row > [class*="col-"]{ display:flex; }
+.chart-row > [class*="col-"] > .chart-card{ width:100%; }
+/* Push the canvas to fill whatever height is left below the heading so
+   the plot areas align across cards too, not just the card borders. */
+.chart-card .chart-canvas-wrap{ flex:1 1 auto; min-height:200px; }
+.chart-card-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+.chart-card-head h6{ margin:0; font-weight:600; }
+
+/* table cards */
+.table-card{ padding:0; overflow:hidden; }
+.table-card-head{ display:flex; justify-content:space-between; align-items:center; padding:18px 20px 12px; }
+.table-card-head h6{ margin:0; font-weight:600; }
+.table-toolbar{ display:flex; justify-content:space-between; gap:12px; padding:18px 20px 8px; flex-wrap:wrap; }
+/* toolbar-actions groups the action buttons in a page heading (Invoices:
+   Create / Back / Print / Download). It had no rule at all, so the
+   buttons had no gap between them and could not wrap -- on a narrow
+   screen they overflowed the heading instead of stacking. */
+.toolbar-actions{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+@media (max-width: 575.98px){
+    /* Heading already stacks at this width; let the buttons fill it
+       rather than sit cramped against the left edge. */
+    .toolbar-actions{ width:100%; }
+    .toolbar-actions .btn{ flex:1 1 auto; }
+}
+
+/* Sales Analysis tabs/breadcrumb */
+.sales-analysis-tab{ padding:12px 20px 20px; }
+#salesAnalysisBreadcrumb .breadcrumb-item a{ cursor:pointer; text-decoration:none; }
+.sales-analysis-party-link{ cursor:pointer; text-decoration:underline; text-decoration-style:dotted; }
+
+.brisk-table{ margin-bottom:0; }
+.brisk-table thead th{
+    font-size:11.5px; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--text-muted); font-weight:600; border-bottom:1px solid rgba(0,0,0,0.06);
+    padding:12px 20px; white-space:nowrap;
+}
+.brisk-table tbody td{ padding:14px 20px; font-size:13.5px; vertical-align:middle; border-bottom:1px solid rgba(0,0,0,0.045); }
+.brisk-table tbody tr:last-child td{ border-bottom:none; }
+.brisk-table tbody tr{ transition:background .15s; }
+.brisk-table tbody tr:hover{ background:rgba(0,0,0,0.025); }
+.company-logo{
+    width:48px;
+    height:48px;
+    object-fit:contain;
+    margin-right:12px;
+}
+
+.company-info{
+    display:flex;
+    flex-direction:column;
+    line-height:1.2;
+}
+
+.company-info h5{
+    margin:0;
+    font-size:18px;
+    font-weight:700;
+    color:#222;
+}
+
+.company-info small{
+    font-size:11px;
+    color:#888;
+}
+.login-logo{
+    width:90px;
+    height:90px;
+    object-fit:contain;
+    margin-bottom:18px;
+}
+
+.auth-logo{
+    text-align:center;
+    margin-bottom:35px;
+}
+
+.login-logo{
+    width:95px;
+    height:95px;
+    object-fit:contain;
+    display:block;
+    margin:0 auto 18px;
+}
+
+.auth-logo h2{
+    margin:0;
+    font-size:32px;
+    font-weight:700;
+    color:#222;
+}
+
+.auth-logo h2 span{
+    color:#ff8c42;
+}
+
+.auth-logo p{
+    margin-top:8px;
+    color:#777;
+    font-size:14px;
+}
+
+.table-pagination{ display:flex; justify-content:flex-end; gap:6px; padding:14px 20px; }
+.page-btn{
+    width:32px; height:32px; border-radius:9px; border:none; background:rgba(0,0,0,0.05);
+    font-size:12.5px; font-weight:600; color:var(--text-main);
+}
+.page-btn.active{ background:var(--accent); color:#fff; }
+
+.status-badge{ font-size:11px; font-weight:600; padding:4px 12px; border-radius:20px; }
+.status-active, .status-paid{ background:#d9f0e3; color:#2f8a5b; }
+.status-inactive, .status-unpaid{ background:#fbdede; color:#c1554f; }
+.status-partial{ background:#fdedc6; color:#a9781f; }
+
+.avatar-name{ display:flex; align-items:center; gap:10px; }
+.avatar-name img{ width:34px; height:34px; border-radius:50%; }
+
+.action-btn{
+    /* inline-flex centring rather than relying on the button's default
+       text centring: the icon glyphs have uneven optical baselines, so
+       several action buttons sat 1-2px low next to their neighbours. */
+    display:inline-flex; align-items:center; justify-content:center;
+    width:30px; height:30px; border-radius:8px; border:none; background:rgba(0,0,0,0.05);
+    color:var(--text-main); font-size:12px; margin-left:4px;
+    transition:background .15s ease, color .15s ease;
+}
+.action-btn:first-child{ margin-left:0; }
+.action-btn.edit:hover{ background:#dbeafe; color:#1d64c9; }
+.action-btn.delete:hover{ background:#fbdede; color:#c1554f; }
+.action-btn.view:hover{ background:#e4dcf7; color:#7c4fd1; }
+/* Approve is used by the return approval queues. Without this variant it
+   fell back to the plain grey base style with no hover feedback, so it
+   read as disabled next to the styled Reject button beside it. */
+.action-btn.approve:hover{ background:#d8f3e3; color:#2f8159; }
+/* Keyboard users had no visible focus target at all on these (they're
+   icon-only buttons with no text label to outline). */
+.action-btn:focus-visible{ outline:2px solid var(--accent, #6c8cff); outline-offset:2px; }
+
+/* Free-text table cells (reason, remarks, notes) can carry up to 500
+   characters from the backend. Unconstrained they stretch the column and
+   push the numeric/action columns off-screen, so clamp them to a
+   readable width and reveal the rest via the cell's title tooltip. */
+.cell-clamp{
+    max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+@media (max-width: 767.98px){
+    .cell-clamp{ max-width:140px; }
+}
+
+/* Notification deep-link affordance + arrival highlight. A notification
+   that can be opened needs to LOOK openable, and the row it lands on
+   needs to be findable in a long table. */
+.notif-clickable{ cursor:pointer; border-radius:8px; padding-left:8px !important; padding-right:8px !important; transition:background .15s ease; }
+.notif-clickable:hover{ background:rgba(0,0,0,0.035); }
+@keyframes rowFlash{
+    0%, 60%{ background:rgba(255,193,7,0.28); }
+    100%{ background:transparent; }
+}
+.row-flash > td{ animation:rowFlash 2.6s ease-out; }
+
+/* mini list (dashboard widgets) */
+.mini-list{ padding:8px 20px 18px; }
+.mini-item{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid rgba(0,0,0,0.045); }
+.mini-item:last-child{ border-bottom:none; }
+.mini-item-icon{ width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff; flex-shrink:0; }
+.mini-item-title{ font-size:13px; font-weight:600; margin-bottom:1px; }
+.mini-item-sub{ font-size:11.5px; }
+.mini-item-value{ margin-left:auto; font-weight:700; font-size:13.5px; }
+
+.timeline .mini-item{ position:relative; padding-left:4px; }
+
+/* ---------------- 8. INVOICE PRINT ---------------- */
+@media print{
+    .sidebar, .topbar, .page-heading, .no-print, .app-footer{ display:none !important; }
+    .main-content{ margin-left:0 !important; }
+    #invoicePrintArea{ box-shadow:none; border:none; backdrop-filter:none; background:#fff; }
+    body{ background:#fff; }
+    /* Printed/PDF output always uses the original side-by-side layout,
+       regardless of the viewport the browser happens to be at when Print
+       is triggered -- the col-12/col-md-* responsive stacking is for the
+       on-screen preview only. */
+    #invoicePrintArea .col-md-4{ flex:0 0 33.333333%; max-width:33.333333%; }
+    #invoicePrintArea .col-md-5{ flex:0 0 41.666667%; max-width:41.666667%; }
+    #invoicePrintArea .col-md-7{ flex:0 0 58.333333%; max-width:58.333333%; }
+}
+
+/* ---------------- 9. SETTINGS ---------------- */
+.logo-upload-box{
+    width:140px; height:140px; margin:0 auto; border-radius:20px;
+    border:2px dashed rgba(0,0,0,0.12); display:flex; align-items:center; justify-content:center;
+    overflow:hidden; background:rgba(0,0,0,0.02);
+}
+.logo-upload-box img{ width:100%; height:100%; object-fit:cover; }
+.theme-swatch{
+    width:44px; height:44px; border-radius:50%; cursor:pointer; border:3px solid transparent;
+    transition:.2s;
+}
+.theme-swatch.active{ border-color:var(--text-main); transform:scale(1.08); }
+
+/* ---------------- 10. SPINNER / TOAST ---------------- */
+.global-spinner{
+    position:fixed; inset:0; background:rgba(255,255,255,.6); backdrop-filter:blur(4px);
+    z-index:3000; display:flex; align-items:center; justify-content:center;
+}
+.spinner-box{ text-align:center; }
+.spinner-box .spinner-border{ color:var(--accent-dark); width:2.6rem; height:2.6rem; }
+.spinner-box p{ margin-top:10px; font-size:13px; font-weight:500; }
+
+.toast{ border-radius:14px; border:none; overflow:hidden; }
+
+/* ---------------- 11. APP FOOTER ---------------- */
+.app-footer{ text-align:center; padding:16px; font-size:12px; color:var(--text-muted); }
+
+/* ---------------- 12. RESPONSIVE (CSS GRID + MEDIA QUERIES) ---------------- */
+/* Both KPI rows share one fixed card width so every card — 4-per-row or
+   6-per-row — renders at the exact same size; auto-fill (not auto-fit)
+   just leaves any leftover track empty instead of stretching existing
+   cards to fill the row. */
+/* Explicit equal columns, not auto-fill. auto-fill packs as many 200px
+   tracks as fit and leaves the remainder EMPTY, so a 16-card grid landed
+   as 5+5+5+1 (or similar) depending on window width -- cards of unequal
+   width with a ragged last row. Fixed counts give every card the same
+   width and a predictable shape: admin 4x4, super stockist 2x4,
+   distributor 1x5. */
+.kpi-row, .kpi-row-6{ display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:1rem; margin:0; }
+.kpi-row-4{ grid-template-columns:repeat(4, minmax(0, 1fr)); }
+.kpi-row-5{ grid-template-columns:repeat(5, minmax(0, 1fr)); }
+/* Equal height regardless of label wrapping, so rows line up. */
+.kpi-row > [class*="col-"], .kpi-row-6 > [class*="col-"]{ display:flex; }
+.kpi-row .kpi-card, .kpi-row-6 .kpi-card{ width:100%; }
+
+/* .kpi-row/.kpi-row-6 override Bootstrap's .row to CSS grid, but the
+   .col-* children still carry Bootstrap's gutter padding (meant for the
+   flexbox .row it no longer is) — that padding stacked on top of the grid
+   gap above is what was showing up as extra, un-removable white space
+   between/around the cards. Grid `gap` alone is enough spacing, so zero
+   out the leftover Bootstrap gutter padding on these specific children. */
+.kpi-row > [class*="col-"], .kpi-row-6 > [class*="col-"]{
+    padding-left:0; padding-right:0; width:auto; max-width:none;
+}
+
+@media (max-width: 1199.98px){
+    /* 5-across is too tight below this width; drop it to 3 with the rest. */
+    .kpi-row, .kpi-row-6, .kpi-row-4, .kpi-row-5{ grid-template-columns:repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 991.98px){
+    .sidebar{ transform:translateX(-100%); width:260px; }
+    .sidebar.mobile-open{ transform:translateX(0); }
+    .sidebar-overlay.show{ display:block; }
+    .main-content{ margin-left:0 !important; }
+    .sidebar-collapse-btn{ display:none !important; }
+    .page-content{ padding:20px 16px 32px; }
+    .topbar{ padding:14px 16px; }
+    .topbar-search{ min-width:160px; }
+}
+
+@media (max-width: 767.98px){
+    .kpi-row, .kpi-row-6, .kpi-row-4, .kpi-row-5{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
+    .auth-card{ padding:32px 24px; }
+    .table-toolbar{ flex-direction:column; align-items:stretch; }
+    .user-chip .user-chip-role{ display:none; }
+}
+
+@media (max-width: 575.98px){
+    .kpi-row, .kpi-row-6, .kpi-row-4, .kpi-row-5{ grid-template-columns:minmax(0, 1fr); }
+    .brisk-table thead th, .brisk-table tbody td{ padding:10px 12px; }
+    .page-heading{ flex-direction:column; align-items:flex-start; }
+}
+
+/* ---------------- SETTINGS: Dark Mode + Font Size (Page 12) ----------------
+   Applied to <body> by applyDisplayPreferences() in script.js, restored on
+   every login from the persisted User.themePreference/fontSizePreference. */
+body.dark-mode{
+    --bg-soft:#1b1d22;
+    --bg-soft-2:#22252b;
+    background:#14161a;
+    color:#e7e7ea;
+}
+body.dark-mode .glass-card,
+body.dark-mode .auth-card,
+body.dark-mode .sidebar{
+    background:rgba(30,32,38,0.85);
+    color:#e7e7ea;
+}
+body.dark-mode .brisk-table thead th{
+    background:#22252b;
+    color:#c9cbd1;
+}
+body.dark-mode .brisk-table tbody td{
+    color:#e7e7ea;
+    border-color:#33363d;
+}
+body.dark-mode .form-control,
+body.dark-mode .form-select{
+    background:#22252b;
+    color:#e7e7ea;
+    border-color:#3a3d45;
+}
+
+body.font-small{ font-size: 0.875rem; }
+body.font-medium{ font-size: 1rem; }
+body.font-large{ font-size: 1.125rem; }
+
+/* Report-PDF render buffer: html2pdf needs this rendered in the DOM (not
+   display:none) to capture it, but it must never be visible in normal
+   page flow — position it off-screen instead. */
+.pdf-offscreen{
+    position:absolute;
+    top:-10000px;
+    left:-10000px;
+    width:800px;
+    z-index:-1;
+    pointer-events:none;
+}
+
+/* Compact secondary KPI cards — no longer used (all dashboard KPI cards
+   now share the unified .kpi-card icon+label+value layout above); kept
+   out to avoid dead CSS drifting out of sync with the markup. */
+.kpi-animate{ transition: opacity .25s ease; }
+.kpi-animate.kpi-updating{ opacity:0.35; }
+
+/* Entrance animation — every KPI card fades/slides in on dashboard load,
+   staggered slightly card-by-card via nth-child delays so the whole
+   dashboard doesn't just pop in flat and static. */
+@keyframes kpiFadeInUp{
+    from{ opacity:0; transform:translateY(10px); }
+    to{ opacity:1; transform:translateY(0); }
+}
+.kpi-row > *, .kpi-row-6 > *{
+    animation: kpiFadeInUp .45s ease both;
+}
+.kpi-row > *:nth-child(1), .kpi-row-6 > *:nth-child(1){ animation-delay: .02s; }
+.kpi-row > *:nth-child(2), .kpi-row-6 > *:nth-child(2){ animation-delay: .06s; }
+.kpi-row > *:nth-child(3), .kpi-row-6 > *:nth-child(3){ animation-delay: .10s; }
+.kpi-row > *:nth-child(4), .kpi-row-6 > *:nth-child(4){ animation-delay: .14s; }
+.kpi-row > *:nth-child(5), .kpi-row-6 > *:nth-child(5){ animation-delay: .18s; }
+.kpi-row > *:nth-child(6), .kpi-row-6 > *:nth-child(6){ animation-delay: .22s; }
+
+@media (prefers-reduced-motion: reduce){
+    .kpi-row > *, .kpi-row-6 > *{ animation:none; }
+}
+
+/* Sales-breakdown active filter chips */
+#breakdownActiveFilters .filter-chip{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--accent-soft, #fdece0); color:#c9660b;
+    border-radius:999px; padding:3px 10px; font-size:12px; font-weight:600;
+}
+#breakdownActiveFilters .filter-chip button{
+    border:none; background:none; color:inherit; font-size:13px; line-height:1; cursor:pointer; padding:0;
+}
+
+/* Chart canvas containers — gives Chart.js's maintainAspectRatio:false a
+   real bounded height to fill, so charts resize cleanly instead of
+   collapsing or stretching unbounded on narrower screens. */
+.chart-canvas-wrap{ position:relative; width:100%; height:240px; }
+.chart-canvas-wrap-sm{ height:220px; }
+@media (max-width:767.98px){
+    .chart-canvas-wrap{ height:200px; }
+    .chart-canvas-wrap-sm{ height:180px; }
+}
