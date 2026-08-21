@@ -33,7 +33,7 @@ services:
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       APP_FRONTEND_BASE_URL: ${APP_FRONTEND_BASE_URL:-http://localhost:8080}
     ports:
-      - "8080:8080"
+      - "8081:8080"
     volumes:
       - dms_uploads:/app/uploads   # persists payment proofs / product images / company logo across restarts & redeploys
 
