@@ -25,8 +25,8 @@ services:
       mysql:
         condition: service_healthy
     environment:
-      DB_URL: jdbc:mysql://mysql:3306/dms_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=Asia/Kolkata
-      DB_USERNAME: dmsuser
+      DB_URL: jdbc:mysql://mysql:3306/dms_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Kolkata
+      DB_USERNAME: root
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
