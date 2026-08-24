@@ -5373,20 +5373,31 @@ document.getElementById("changePasswordForm").addEventListener("submit", async (
 function loadProfileIntoSettings(){
     const user = getCurrentUser();
     if (!user) return;
-    document.getElementById("profileFullName").value = user.fullName || "";
-    document.getElementById("profileUsername").value = user.username || "";
-    document.getElementById("profileEmail").value = user.email || "";
-    document.getElementById("darkModeSelect").value = user.themePreference || "light";
-    document.getElementById("fontSizeSelect").value = user.fontSizePreference || "medium";
+    // BUG fix: this used to call document.getElementById(...).value directly,
+    // which threw (and aborted the REST of loadAllModules -- categories,
+    // products, shops, invoices, payments, notifications -- since this is
+    // the first statement in that async function) for any non-admin login.
+    // settingsApplyRole() removes #settingsAdminPane (which contains these
+    // profile* fields) for non-admin roles, so these elements are only
+    // ever present in the DOM for an admin session. Guard each assignment
+    // the same way loadPersonalSettings()'s set() helper already does.
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ""; };
+    set("profileFullName", user.fullName);
+    set("profileUsername", user.username);
+    set("profileEmail", user.email);
+    set("darkModeSelect", user.themePreference || "light");
+    set("fontSizeSelect", user.fontSizePreference || "medium");
     const photoPreview = document.getElementById("profilePhotoPreview");
     const photoPlaceholder = document.getElementById("profilePhotoPlaceholder");
-    if (user.profileImage){
-        photoPreview.src = user.profileImage;
-        photoPreview.style.display = "inline-block";
-        photoPlaceholder.style.display = "none";
-    } else {
-        photoPreview.style.display = "none";
-        photoPlaceholder.style.display = "inline-block";
+    if (photoPreview && photoPlaceholder){
+        if (user.profileImage){
+            photoPreview.src = user.profileImage;
+            photoPreview.style.display = "inline-block";
+            photoPlaceholder.style.display = "none";
+        } else {
+            photoPreview.style.display = "none";
+            photoPlaceholder.style.display = "inline-block";
+        }
     }
     applyDisplayPreferences(user.themePreference || "light", user.fontSizePreference || "medium");
 }
