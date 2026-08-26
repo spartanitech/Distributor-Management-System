@@ -725,7 +725,18 @@ body.dark-mode .btn-soft{ background:rgba(255,255,255,0.08); color:var(--text-ma
     .sidebar-collapse-btn{ display:none !important; }
     .page-content{ padding:20px 16px 32px; }
     .topbar{ padding:14px 16px; }
-    .topbar-search{ min-width:160px; }
+    /* The search box used to have a fixed min-width:160px with no room
+       to give on the topbar's two flex children -- on real phone widths
+       (360-414px) that pushed the total past the viewport and the theme
+       toggle / notification bell / avatar got silently clipped by the
+       html{overflow-x:hidden} rule below. Let it size to whatever room
+       is actually left instead of demanding a fixed minimum: the left
+       group (menu button + search) and right group (icons + avatar)
+       now share the row via flex-grow/flex-shrink so nothing overflows
+       at any width, from a small phone up through tablet. */
+    .topbar > div:first-child{ flex:1 1 auto; min-width:0; }
+    .topbar > div:last-child{ flex-shrink:0; }
+    .topbar-search{ min-width:0; width:100%; }
 }
 
 @media (max-width: 767.98px){
@@ -739,6 +750,15 @@ body.dark-mode .btn-soft{ background:rgba(255,255,255,0.08); color:var(--text-ma
     .kpi-row, .kpi-row-6, .kpi-row-4, .kpi-row-5{ grid-template-columns:minmax(0, 1fr); }
     .brisk-table thead th, .brisk-table tbody td{ padding:10px 12px; }
     .page-heading{ flex-direction:column; align-items:flex-start; }
+    /* Small-phone breathing room: tighten the topbar chrome further and
+       cap the notification dropdown so it can never hang off a narrow
+       (320-360px) screen edge. */
+    .topbar{ padding:12px 12px; }
+    .topbar > div:first-child{ gap:8px !important; }
+    .topbar > div:last-child{ gap:6px !important; }
+    .icon-btn{ width:36px; height:36px; font-size:14px; }
+    .topbar-search{ padding:8px 12px; }
+    .notif-dropdown{ width:min(320px, calc(100vw - 32px)); }
 }
 
 /* ---------------- SETTINGS: Dark Mode + Font Size (Page 12) ----------------
