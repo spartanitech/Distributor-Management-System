@@ -169,6 +169,20 @@ a{ text-decoration:none; }
 body.dark-mode .role-tabs{ background:rgba(255,255,255,0.06); }
 .role-tab{
     flex:1;
+    /* Flex items default to min-width:auto, which refuses to shrink
+       below the intrinsic width of their content. "Super Stockist" has
+       a space to wrap at, so it already broke into two lines and stayed
+       inside its share of the row -- but "Distributor" is one unbreakable
+       word, so on a narrow phone the button (and the whole .role-tabs
+       row, and the card around it) was forced wider than the screen, and
+       the tail of the word got silently clipped by .auth-wrapper's
+       overflow:hidden. min-width:0 lets the button actually shrink to
+       the space it's given; overflow-wrap lets that one long word break
+       onto a second line the same way the two-word label already does. */
+    min-width:0;
+    overflow-wrap:break-word;
+    word-break:break-word;
+    text-align:center;
     border:none;
     background:transparent;
     color:var(--text-muted);
@@ -750,6 +764,12 @@ body.dark-mode .btn-soft{ background:rgba(255,255,255,0.08); color:var(--text-ma
     .kpi-row, .kpi-row-6, .kpi-row-4, .kpi-row-5{ grid-template-columns:minmax(0, 1fr); }
     .brisk-table thead th, .brisk-table tbody td{ padding:10px 12px; }
     .page-heading{ flex-direction:column; align-items:flex-start; }
+    /* Give the role tabs a little less padding/gap so "Distributor"
+       has the best chance of fitting on one line before it has to
+       wrap -- the min-width:0 + overflow-wrap fix above still catches
+       it if this isn't enough room, but this keeps the common case tidy. */
+    .role-tabs{ gap:4px; padding:4px; }
+    .role-tab{ padding:10px 6px; gap:5px; font-size:12.5px; }
     /* Small-phone breathing room: tighten the topbar chrome further and
        cap the notification dropdown so it can never hang off a narrow
        (320-360px) screen edge. */
