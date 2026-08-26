@@ -66,7 +66,7 @@ public class InvoiceController {
     // raised", so a party's own purchase bills would otherwise be
     // invisible and unpayable. Admin gets an empty list -- Company is the
     // top of the chain and is never billed.
-    @PreAuthorize("hasRole('SUPER_STOCKIST') or hasRole('DISTRIBUTOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_STOCKIST') or hasRole('DISTRIBUTOR')")
     @GetMapping("/billed-to-me")
     public ResponseEntity<ApiResponse<List<InvoiceResponse>>> getInvoicesBilledToMe() {
 
