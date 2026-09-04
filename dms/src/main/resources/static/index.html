@@ -1408,7 +1408,7 @@
                     </div>
                     <div class="table-responsive">
                         <table class="table brisk-table">
-                            <thead><tr><th>Product</th><th>Category</th><th>Barcode</th><th>Stock</th><th>Price</th><th>Tax</th><th class="text-end">Actions</th></tr></thead>
+                            <thead><tr><th>S.No</th><th>Batch No.</th><th>HSN/SAC</th><th>Product</th><th>Category</th><th>Barcode</th><th>Stock</th><th>Price</th><th>Tax</th><th>Discount</th><th class="text-end">Actions</th></tr></thead>
                             <tbody id="productsTableBody"></tbody>
                         </table>
                     </div>
@@ -1931,7 +1931,7 @@
 
                         <div class="table-responsive mb-3">
                             <table class="table brisk-table" id="invoiceItemsTable">
-                                <thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Tax %</th><th>Total</th><th></th></tr></thead>
+                                <thead><tr><th>Product</th><th>Qty (Billed)</th><th>Shipped Qty</th><th>Price</th><th>Disc %</th><th>Tax %</th><th>Total</th><th></th></tr></thead>
                                 <tbody id="invoiceItemsBody"></tbody>
                             </table>
                         </div>
@@ -1941,7 +1941,7 @@
                             <div class="col-md-4">
                                 <div class="d-flex justify-content-between mb-2"><span>Subtotal</span><b id="invSubtotal">₹0.00</b></div>
                                 <div class="mb-2">
-                                    <label class="form-label-soft">Discount (%)</label>
+                                    <label class="form-label-soft">Bulk Discount (%) — sets all items below, then edit any line's Disc % individually</label>
                                     <input type="number" class="form-control" id="invDiscount" value="0" min="0" max="100">
                                 </div>
                                 <div class="d-flex justify-content-between mb-2"><span>GST</span><b id="invGst">₹0.00</b></div>
@@ -2024,7 +2024,7 @@
                         <div class="table-responsive mb-3">
                             <table class="table mb-0" style="font-size:12.5px;">
                                 <thead><tr style="background:#1d4ed8;color:#fff;">
-                                    <th class="rounded-start">#</th><th>Product Name</th><th>HSN/SKU</th><th>Qty</th><th>Unit</th><th>Unit Price (₹)</th><th>Discount (₹)</th><th>Tax (%)</th><th class="rounded-end">Amount (₹)</th>
+                                    <th class="rounded-start">#</th><th>Product Name</th><th>HSN/SAC</th><th>MRP (₹)</th><th>Qty Shipped</th><th>Qty Billed</th><th>Rate (₹)</th><th>Disc.%</th><th class="rounded-end">Amount (₹)</th>
                                 </tr></thead>
                                 <tbody id="pvItemsBody"></tbody>
                             </table>
@@ -2034,8 +2034,6 @@
                             <div class="col-12 col-md-7">
                                 <p class="fw-700 small mb-1" style="color:#1d4ed8;">Amount in Words:</p>
                                 <p class="small text-muted mb-3" id="pvAmountWords">--</p>
-                                <p class="fw-700 small mb-1" style="color:#1d4ed8;">Notes:</p>
-                                <ul class="small text-muted mb-0" id="pvTerms" style="padding-left:18px;"></ul>
                             </div>
                             <div class="col-12 col-md-5 mt-3 mt-md-0">
                                 <div class="small">
@@ -2044,6 +2042,7 @@
                                     <div class="d-flex justify-content-between py-1"><span class="text-muted">Taxable Amount</span><b id="pvTaxable">₹0.00</b></div>
                                     <div class="d-flex justify-content-between py-1"><span class="text-muted" id="pvCgstLabel">CGST (2.5%)</span><b id="pvCgst">₹0.00</b></div>
                                     <div class="d-flex justify-content-between py-1"><span class="text-muted" id="pvSgstLabel">SGST (2.5%)</span><b id="pvSgst">₹0.00</b></div>
+                                    <div class="d-flex justify-content-between py-1"><span class="text-muted" id="pvRoundOffLabel">Round Off</span><b id="pvRoundOff">₹0.00</b></div>
                                     <div class="d-flex justify-content-between py-2 px-2 mt-1" style="background:#dbeafe;border-radius:6px;"><span class="fw-700" style="color:#1d4ed8;">Total Amount (₹)</span><b style="color:#1d4ed8;" id="pvGrandTotal">₹0.00</b></div>
                                     <div class="d-flex justify-content-between py-1 mt-1"><span class="text-muted">Paid Amount</span><b id="pvPaidAmount">₹0.00</b></div>
                                     <div class="d-flex justify-content-between py-2 px-2" style="background:#dcfce7;border-radius:6px;"><span class="fw-700" style="color:#15803d;">Balance Amount (₹)</span><b style="color:#15803d;" id="pvBalanceAmount">₹0.00</b></div>
@@ -2365,11 +2364,16 @@
                                 <div class="row g-3">
                                     <div class="col-md-6"><label class="form-label-soft">Company Name</label><input type="text" class="form-control" id="companyName" value="Brisk Traders"></div>
                                     <div class="col-md-6"><label class="form-label-soft">GST Number</label><input type="text" class="form-control" id="companyGst" placeholder="22AAAAA0000A1Z5"></div>
+                                    <div class="col-md-6"><label class="form-label-soft">FSSAI License No.</label><input type="text" class="form-control" id="companyFssai" placeholder="12425012000650"></div>
                                     <div class="col-md-6"><label class="form-label-soft">PAN Number</label><input type="text" class="form-control" id="companyPan" placeholder="AAAAA0000A"></div>
                                     <div class="col-md-6"><label class="form-label-soft">Contact Email</label><input type="email" class="form-control" id="companyEmail"></div>
                                     <div class="col-md-6"><label class="form-label-soft">Contact Phone</label><input type="text" class="form-control" id="companyPhone"></div>
                                     <div class="col-md-6"><label class="form-label-soft">Website</label><input type="text" class="form-control" id="companyWebsite" placeholder="www.example.com"></div>
                                     <div class="col-12"><label class="form-label-soft">Address</label><textarea class="form-control" id="companyAddress" rows="2"></textarea></div>
+                                    <div class="col-md-4"><label class="form-label-soft">City</label><input type="text" class="form-control" id="companyCity"></div>
+                                    <div class="col-md-4"><label class="form-label-soft">State</label><input type="text" class="form-control" id="companyState"></div>
+                                    <div class="col-md-4"><label class="form-label-soft">Pincode</label><input type="text" class="form-control" id="companyPincode"></div>
+                                    <div class="col-12"><small class="text-muted">Name, GST, FSSAI, Address, City, State, Pincode, Phone and Email print on every Company → Super Stockist invoice.</small></div>
                                     <div class="col-12"><hr class="my-1"><p class="form-label-soft mb-1">Bank Details (shown on invoices)</p></div>
                                     <div class="col-md-6"><label class="form-label-soft">Bank Name</label><input type="text" class="form-control" id="companyBankName"></div>
                                     <div class="col-md-6"><label class="form-label-soft">Branch</label><input type="text" class="form-control" id="companyBankBranch"></div>
@@ -2891,6 +2895,6 @@ Subject to local jurisdiction.</textarea></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="script.js"></script>
+<script src="script.js?v=5"></script>
 </body>
 </html>

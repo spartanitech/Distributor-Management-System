@@ -74,6 +74,7 @@ const ENDPOINTS = {
     paymentProofs: API_BASE + "/payment-proofs",
     reports:       API_BASE + "/reports",
     auditLogs:     API_BASE + "/audit-logs",
+    companySettings: API_BASE + "/company-settings",
 };
 
 function getToken(){ return localStorage.getItem("brisk_token"); }
@@ -1867,7 +1868,20 @@ document.getElementById("prSubmitBtn")?.addEventListener("click", async () => {
 async function loadAndRenderAdminWarehouse(){
     showSpinner();
     try{
-        const res = await apiRequest(ENDPOINTS.warehouse + "/company");
+        // Bug fix: this page's own heading says "stock across every Super
+        // Stockist and Distributor", but it was calling /warehouse/company
+        // — which returns the COMPANY's own root stock (Product.stockQuantity),
+        // not any SS/Distributor's Warehouse rows. Every row therefore had
+        // ownerType "COMPANY" (never "SUPER_STOCKIST"), so the table always
+        // rendered the "Dist" badge, and distributorName/superStockistName
+        // were never set for these rows, so the name always fell back to
+        // "—". That's what made a distributor showing 999 here look like
+        // they had stock when invoicing then failed with "available 0" —
+        // the 999 was the Company's central stock, not that distributor's
+        // own warehouse. /warehouse/me is what actually returns every real
+        // Warehouse row (every SS's and every distributor's own on-hand
+        // stock) for an admin caller, correctly labeled.
+        const res = await apiRequest(ENDPOINTS.warehouse + "/me");
         const rows = unwrap(res, []);
         document.getElementById("adminWarehouseTableBody").innerHTML = rows.map(w => {
             const owner = w.ownerType === "SUPER_STOCKIST"
@@ -2423,12 +2437,14 @@ const CRUD_CONFIG = {
         stateKey: "products",
         tableBody: "productsTableBody",
         searchInput: "productsSearch",
-        emptyColspan: 7,
-        searchFields: (p, term) => [p.productName, p.barcode, p.productCode].some(v => String(v||"").toLowerCase().includes(term)),
+        emptyColspan: 11,
+        searchFields: (p, term) => [p.productName, p.barcode, p.productCode, p.batchNumber, p.hsnSacCode].some(v => String(v||"").toLowerCase().includes(term)),
         categoryFilterId: "productsCategoryFilter",
         fields: [
             { key:"productName", label:"Product Name", type:"text", required:true },
             { key:"productCode", label:"Product Code", type:"text", required:true, editHint:"Must be unique" },
+            { key:"batchNumber", label:"Batch No.", type:"text" },
+            { key:"hsnSacCode", label:"HSN/SAC Code", type:"text" },
             { key:"barcode", label:"Barcode", type:"text" },
             { key:"categoryId", label:"Category", type:"category-select", required:true },
             { key:"brandName", label:"Brand", type:"text" },
@@ -2441,12 +2457,21 @@ const CRUD_CONFIG = {
             { key:"sellingPrice", label:"Selling Price / SP (₹) — Distributor → Shop rate", type:"number", required:true },
             { key:"mrp", label:"MRP (₹)", type:"number" },
             { key:"gstPercentage", label:"GST (%)", type:"number", required:true },
+            { key:"discountPercent", label:"Discount (%) — auto: MRP vs Selling Price", type:"readonly-computed", computeFrom:["mrp","sellingPrice"],
+              compute:(vals) => {
+                  const mrp = Number(vals.mrp) || 0;
+                  const sp = Number(vals.sellingPrice) || 0;
+                  if (mrp <= 0) return "";
+                  const pct = Math.max(0, ((mrp - sp) / mrp) * 100);
+                  return pct > 0 ? pct.toFixed(1) + "%" : "0%";
+              } },
             { key:"description", label:"Description", type:"textarea" },
             { key:"active", label:"Status", type:"select-bool", options:["Active","Inactive"] },
         ],
         toRequest(values){
             return {
                 productName: values.productName, productCode: values.productCode, barcode: values.barcode || null,
+                batchNumber: values.batchNumber || null, hsnSacCode: values.hsnSacCode || null,
                 categoryId: values.categoryId ? Number(values.categoryId) : null,
                 brandName: values.brandName || null, unit: values.unit || null,
                 stockQuantity: values.stockQuantity !== "" ? Number(values.stockQuantity) : 0,
@@ -2461,13 +2486,22 @@ const CRUD_CONFIG = {
                 active: values.active,
             };
         },
-        row(p){
+        row(p, i){
             const low = p.minimumStock != null ? Number(p.stockQuantity) <= Number(p.minimumStock) : Number(p.stockQuantity) <= 10;
+            // Discount shown here is derived (not a stored field): how much the
+            // selling price is off the product's MRP, for a quick at-a-glance view.
+            const mrpNum = Number(p.mrp) || 0;
+            const spNum = Number(p.sellingPrice) || 0;
+            const discPct = mrpNum > 0 ? Math.max(0, ((mrpNum - spNum) / mrpNum) * 100) : 0;
             return `<tr>
+        <td>${(i ?? 0) + 1}</td>
+        <td>${escapeHtml(p.batchNumber || "—")}</td>
+        <td>${escapeHtml(p.hsnSacCode || "—")}</td>
         <td><div class="avatar-name"><img style="border-radius:10px" src="${p.productImage || avatarUrl(p.productName)}"><span class="fw-600" style="font-size:13.5px">${escapeHtml(p.productName)}</span></div></td>
         <td>${escapeHtml(p.categoryName || "—")}</td><td>${escapeHtml(p.barcode || "—")}</td>
         <td>${p.stockQuantity ?? 0} ${low ? '<span class="status-badge status-unpaid ms-1">Low</span>' : ""}</td>
         <td>${formatCurrency(p.sellingPrice)}</td><td>${p.gstPercentage ?? 0}%</td>
+        <td>${discPct > 0 ? discPct.toFixed(1) + "%" : "—"}</td>
         <td class="text-end">
           <button class="action-btn edit" data-action="edit" data-id="${p.id}"><i class="fa-solid fa-pen"></i></button>
           <button class="action-btn" data-action="pricing" data-id="${p.id}" data-name="${escapeHtml(p.productName)}" title="Per-partner pricing"><i class="fa-solid fa-tags"></i></button>
@@ -2633,10 +2667,10 @@ function renderCrudTable(moduleName, page = 1){
         usersPage = crudModulePage.users; // kept in sync — some older code may still read this global.
         const start = (currentPage - 1) * pagination.pageSize;
         const pageRows = rows.slice(start, start + pagination.pageSize);
-        tbody.innerHTML = pageRows.map(cfg.row).join("") || `<tr><td colspan="${cfg.emptyColspan}" class="text-center text-muted py-4">No records found.</td></tr>`;
+        tbody.innerHTML = pageRows.map((item, i) => cfg.row(item, start + i)).join("") || `<tr><td colspan="${cfg.emptyColspan}" class="text-center text-muted py-4">No records found.</td></tr>`;
         renderPagination(pagination.containerId, totalPages, currentPage, (p) => renderCrudTable(moduleName, p));
     } else {
-        tbody.innerHTML = rows.map(cfg.row).join("") || `<tr><td colspan="${cfg.emptyColspan}" class="text-center text-muted py-4">No records found.</td></tr>`;
+        tbody.innerHTML = rows.map((item, i) => cfg.row(item, i)).join("") || `<tr><td colspan="${cfg.emptyColspan}" class="text-center text-muted py-4">No records found.</td></tr>`;
     }
 
     tbody.querySelectorAll("[data-action]").forEach(btn => {
@@ -2776,6 +2810,9 @@ function fieldControl(f, value){
     if (f.type === "textarea"){
         return `<textarea class="form-control" rows="2" data-field="${f.key}">${escapeHtml(v)}</textarea>`;
     }
+    if (f.type === "readonly-computed"){
+        return `<input type="text" class="form-control" data-field="${f.key}" data-computed="1" value="${escapeHtml(v)}" disabled>`;
+    }
     // Every numeric field rendered by this generic engine (IDs, stock
     // quantities, prices, GST%) is a non-negative value in this domain —
     // min="0" gives an instant browser-level guard instead of only finding
@@ -2847,12 +2884,36 @@ function openCrudModal(moduleName, id = null){
             value = match ? match.id : "";
         }
         if (f.type === "password") value = ""; // never pre-fill password hashes
+        if (f.type === "readonly-computed" && typeof f.compute === "function"){
+            value = f.compute(item || {});
+        }
         const colClass = (f.type === "textarea") ? "col-12" : "col-md-6";
         const hint = id && f.editHint ? `<div class="form-text" style="font-size:11px">${escapeHtml(f.editHint)}</div>` : (!id && f.editHint && f.type !== "password" ? "" : "");
         return `<div class="${colClass}"><label class="form-label-soft">${f.label}</label>${fieldControl(f, value)}${hint}</div>`;
     }).join("");
 
     document.getElementById("crudFormFields").innerHTML = fieldsHtml;
+
+    // Wire up any "readonly-computed" fields (e.g. Products' Discount %)
+    // so they recompute live as the fields they depend on change, instead
+    // of only reflecting whatever was true when the modal opened.
+    const formEl = document.getElementById("crudFormFields");
+    cfg.fields.filter(f => f.type === "readonly-computed" && typeof f.compute === "function").forEach(f => {
+        const targetEl = formEl.querySelector(`[data-field="${f.key}"]`);
+        if (!targetEl) return;
+        const recompute = () => {
+            const vals = {};
+            (f.computeFrom || []).forEach(depKey => {
+                const depEl = formEl.querySelector(`[data-field="${depKey}"]`);
+                vals[depKey] = depEl ? depEl.value : "";
+            });
+            targetEl.value = f.compute(vals);
+        };
+        (f.computeFrom || []).forEach(depKey => {
+            const depEl = formEl.querySelector(`[data-field="${depKey}"]`);
+            depEl?.addEventListener("input", recompute);
+        });
+    });
 
     // BUG-H15 fix: product image upload. Files don't belong in the JSON
     // create/update payload, so this is a separate control that uploads
@@ -3626,7 +3687,7 @@ function renderInvoicesList(){
       </td></tr>`).join("") || `<tr><td colspan="6" class="text-center text-muted py-4">No invoices found.</td></tr>`;
 
     document.getElementById("invoicesTableBody").querySelectorAll("[data-action]").forEach(btn => {
-        btn.addEventListener("click", () => {
+        btn.addEventListener("click", async () => {
             const inv = STATE.invoices.find(i => i.id == btn.dataset.id);
             if (!inv) return;
             if (btn.dataset.action === "view") openInvoicePreview(inv);
@@ -3635,7 +3696,12 @@ function renderInvoicesList(){
                 // html2canvas needs the invoice actually rendered on screen
                 // to capture it, so we open the preview then immediately
                 // trigger the PDF save, no extra click needed from the user.
-                openInvoicePreview(inv);
+                // Bug fix: openInvoicePreview() is now async (it awaits the
+                // company-settings fetch before filling in the DOM) -- it
+                // must be awaited here too, otherwise downloadInvoicePdf()
+                // used to fire before the preview had actually been
+                // populated, capturing a blank/stale PDF.
+                await openInvoicePreview(inv);
                 downloadInvoicePdf(inv);
             }
             else showConfirm("Delete Invoice", "This invoice will be permanently removed.", async () => {
@@ -3849,7 +3915,9 @@ function tierPriceForCurrentLevel(product){
 function renderInvoiceItemsTable(){
     const body = document.getElementById("invoiceItemsBody");
     body.innerHTML = currentInvoiceItems.map((item, idx) => {
-        const total = item.qty * item.price * (1 + item.tax/100);
+        const discPct = item.discPct || 0;
+        const lineBase = item.qty * item.price * (1 - discPct/100);
+        const total = lineBase * (1 + item.tax/100);
         return `<tr>
       <td>
         <select class="form-select form-select-sm" data-idx="${idx}" data-field="productId">
@@ -3857,12 +3925,14 @@ function renderInvoiceItemsTable(){
         </select>
       </td>
       <td><input type="number" min="1" class="form-control form-control-sm" data-idx="${idx}" data-field="qty" value="${item.qty}"></td>
+      <td><input type="number" min="0" class="form-control form-control-sm" data-idx="${idx}" data-field="shippedQty" value="${item.shippedQty ?? item.qty}" title="Quantity actually dispatched — informational, printed on the invoice, doesn't affect pricing"></td>
       <td><input type="number" min="0" class="form-control form-control-sm" data-idx="${idx}" data-field="price" value="${item.price}"></td>
+      <td><input type="number" min="0" max="100" step="0.01" class="form-control form-control-sm" data-idx="${idx}" data-field="discPct" value="${discPct}"></td>
       <td><input type="number" min="0" class="form-control form-control-sm" data-idx="${idx}" data-field="tax" value="${item.tax}"></td>
       <td class="fw-600">${formatCurrency(total)}</td>
       <td><button class="action-btn delete" data-remove="${idx}"><i class="fa-solid fa-xmark"></i></button></td>
     </tr>`;
-    }).join("") || `<tr><td colspan="6" class="text-center text-muted py-3">No items added yet.</td></tr>`;
+    }).join("") || `<tr><td colspan="8" class="text-center text-muted py-3">No items added yet.</td></tr>`;
 
     body.querySelectorAll("[data-field]").forEach(el => {
         el.addEventListener("change", () => {
@@ -3891,18 +3961,35 @@ function renderInvoiceItemsTable(){
 }
 
 document.getElementById("addInvoiceItemBtn").addEventListener("click", () => {
-    const firstProduct = STATE.products[0];
-    if (!firstProduct) return;
-    currentInvoiceItems.push({ productId: firstProduct.id, qty:1, price: tierPriceForCurrentLevel(firstProduct), tax: Number(firstProduct.gstPercentage)||0 });
+    if (!STATE.products.length) return;
+    // Bug fix: this used to always push STATE.products[0], so every
+    // "Add Item" click after the first added ANOTHER row for whichever
+    // product was already first in the list instead of a fresh one —
+    // pick the first product not already on the invoice, falling back
+    // to the first product overall only once every product is in use.
+    const usedIds = new Set(currentInvoiceItems.map(i => i.productId));
+    const nextProduct = STATE.products.find(p => !usedIds.has(p.id)) || STATE.products[0];
+    currentInvoiceItems.push({ productId: nextProduct.id, qty:1, shippedQty:1, discPct:0, price: tierPriceForCurrentLevel(nextProduct), tax: Number(nextProduct.gstPercentage)||0 });
     renderInvoiceItemsTable();
 });
-document.getElementById("invDiscount").addEventListener("input", recalcInvoiceTotals);
+// "Bulk Discount (%)" — a convenience that stamps this % onto every
+// current line's own Disc % (which is what's actually saved/printed).
+// It does NOT recompute a separate header-level discount on its own.
+document.getElementById("invDiscount").addEventListener("input", () => {
+    const pct = Number(document.getElementById("invDiscount").value || 0);
+    currentInvoiceItems.forEach(i => i.discPct = pct);
+    renderInvoiceItemsTable();
+});
 
 function computeInvoiceTotals(){
     const sub = currentInvoiceItems.reduce((s,i)=>s+i.qty*i.price,0);
-    const gst = currentInvoiceItems.reduce((s,i)=>s+(i.qty*i.price*i.tax/100),0);
-    const discountPct = Number(document.getElementById("invDiscount").value || 0);
-    const discountAmt = sub * discountPct/100;
+    const discountAmt = currentInvoiceItems.reduce((s,i)=>s+(i.qty*i.price*(i.discPct||0)/100),0);
+    // GST is charged on the post-discount line value, matching how the
+    // backend (InvoiceService.saveInvoiceItems) actually computes it.
+    const gst = currentInvoiceItems.reduce((s,i)=>{
+        const lineBase = i.qty*i.price - (i.qty*i.price*(i.discPct||0)/100);
+        return s + (lineBase * i.tax/100);
+    },0);
     const grand = sub - discountAmt + gst;
     return { sub, gst, discountAmt, grand };
 }
@@ -3927,6 +4014,18 @@ function nextInvoiceNumber(){
 
 document.getElementById("saveInvoiceBtn").addEventListener("click", async () => {
     if (!currentInvoiceItems.length){ showToast("No items", "Add at least one invoice item.", "error"); return; }
+
+    // Bug fix: a line item whose price never resolved (no tier price set
+    // for that product) used to save silently as a ₹0 line — the backend
+    // now rejects this too, but catching it here gives an immediate,
+    // specific message instead of a round trip to find out.
+    const zeroPriceItem = currentInvoiceItems.find(i => !(Number(i.price) > 0));
+    if (zeroPriceItem) {
+        const product = STATE.products.find(p => p.id === zeroPriceItem.productId);
+        const name = product ? product.productName : "this product";
+        showToast("Missing price", `"${name}" has no price set for this invoice level — set it in Products before invoicing.`, "error");
+        return;
+    }
 
     const totals = computeInvoiceTotals();
     const paymentStatus = document.getElementById("invPaymentStatus").value;
@@ -3953,6 +4052,11 @@ document.getElementById("saveInvoiceBtn").addEventListener("click", async () => 
     // Real backend shape (InvoiceRequest). Note: the backend has no
     // endpoint/table to persist individual line items — only header-level
     // totals are stored in MySQL, so only these fields are sent.
+    //
+    // Each item now carries its own Disc % (and Shipped Qty) set directly
+    // in the item row above — that's what's actually saved, not a single
+    // header-level % spread evenly. "Bulk Discount (%)" is just a
+    // convenience that stamped this value onto every row when typed.
     const apiPayload = {
         invoiceLevel: level,
         invoiceDate,
@@ -3967,8 +4071,9 @@ document.getElementById("saveInvoiceBtn").addEventListener("click", async () => 
         items: currentInvoiceItems.map(it => ({
             productId: it.productId,
             quantity: it.qty,
+            shippedQuantity: it.shippedQty != null ? it.shippedQty : it.qty,
             unitPrice: it.price,
-            discountAmount: 0,
+            discountAmount: Number(((it.qty * it.price) * (it.discPct||0) / 100).toFixed(2)),
             gstPercentage: it.tax,
         })),
     };
@@ -4045,9 +4150,33 @@ function getCompanySettings(){
     try{ return JSON.parse(localStorage.getItem(COMPANY_SETTINGS_KEY) || "{}"); }catch(e){ return {}; }
 }
 
-function openInvoicePreview(inv){
+async function openInvoicePreview(inv){
     editingInvoicePreview = inv;
+    // Bug fix: company.name/address/phone/email used to come ONLY from
+    // getCompanySettings() (localStorage) -- but loadCompanySettingsIntoForm()
+    // and the companyForm submit handler above both moved these specific
+    // fields server-side a while back (see ENDPOINTS.companySettings), so
+    // localStorage's copy of them was permanently empty from then on. That's
+    // why the invoice always printed "--" for address/phone/email even
+    // though Settings showed the real saved values (Settings reads them
+    // straight from the backend) -- website/bank details/logo/terms are
+    // still genuinely localStorage-only, so those kept working fine. Fetch
+    // the real record here too and merge it over the localStorage object so
+    // the invoice prints exactly what Settings shows.
     const company = getCompanySettings();
+    try{
+        const res = await apiRequest(ENDPOINTS.companySettings);
+        const data = res && res.data;
+        if (data){
+            company.name = data.companyName || company.name;
+            company.email = data.email || company.email;
+            company.phone = data.phone || company.phone;
+            company.address = [data.address, data.city, data.state, data.pincode].filter(Boolean).join(", ") || company.address;
+        }
+    }catch(e){
+        // No company-settings record yet (or offline) -- fall back to
+        // whatever localStorage had rather than blocking the preview.
+    }
     const shop = STATE.shops.find(s => s.id === inv.shopId);
     const currentUser = getCurrentUser() || {};
 
@@ -4109,22 +4238,38 @@ function openInvoicePreview(inv){
     document.getElementById("pvPlaceOfSupply").textContent = (shop && shop.state) || "--";
 
     // ---- Item table ----
+    // MRP and HSN/SAC now come from the real product record (Product.mrp /
+    // Product.hsnSacCode, surfaced on each InvoiceItemResponse) instead of
+    // "--" placeholders. There's no separate "goods shipped vs goods
+    // billed" concept in this system (one quantity per line, no partial
+    // shipment tracking) — Qty Shipped and Qty Billed both show that same
+    // quantity, matching the paper invoice layout without inventing data.
     const items = inv.items || [];
     if (items.length){
-        // HSN/SAC isn't a field the product catalog stores yet, so this
-        // column is left honest ("--") rather than showing a fabricated
-        // tax code -- ask if you want a real HSN/SAC field added to Products.
-        document.getElementById("pvItemsBody").innerHTML = items.map((it, idx) => `<tr>
+        document.getElementById("pvItemsBody").innerHTML = items.map((it, idx) => {
+            const qty = Number(it.quantity) || 0;
+            const unitPrice = Number(it.unitPrice) || 0;
+            const discountAmt = Number(it.discountAmount) || 0;
+            const lineValue = qty * unitPrice;
+            // Rate/Amount printed here are post-discount, pre-GST (GST is
+            // shown once as CGST+SGST at the bottom) — same convention as
+            // the paper invoice this mirrors.
+            const amount = lineValue - discountAmt;
+            const rate = qty > 0 ? amount / qty : unitPrice;
+            const discPct = lineValue > 0 ? (discountAmt / lineValue) * 100 : 0;
+            const shippedQty = it.shippedQuantity != null ? it.shippedQuantity : qty;
+            return `<tr>
             <td>${idx+1}</td>
             <td>${escapeHtml(it.productName || "--")}</td>
-            <td>--</td>
-            <td>${it.quantity ?? "--"}</td>
-            <td>${escapeHtml(it.unit || "--")}</td>
-            <td>${formatCurrency(it.unitPrice)}</td>
-            <td>${formatCurrency(it.discountAmount || 0)}</td>
-            <td>${it.gstPercentage != null ? it.gstPercentage + "%" : "--"}</td>
-            <td>${formatCurrency(it.totalAmount)}</td>
-        </tr>`).join("");
+            <td>${escapeHtml(it.hsnSacCode || "--")}</td>
+            <td>${it.mrp != null ? formatCurrency(it.mrp) : "--"}</td>
+            <td>${shippedQty} ${escapeHtml(it.unit || "")}</td>
+            <td>${qty} ${escapeHtml(it.unit || "")}</td>
+            <td>${formatCurrency(rate)}</td>
+            <td>${discPct > 0 ? discPct.toFixed(2) + "%" : "0.00%"}</td>
+            <td>${formatCurrency(amount)}</td>
+        </tr>`;
+        }).join("");
     } else {
         // Older invoices saved before line items were persisted -- only
         // header totals exist in the database for these, so show exactly
@@ -4136,25 +4281,28 @@ function openInvoicePreview(inv){
 
     // ---- Totals (CGST/SGST is a straight half-split of the single GST%
     // the system stores per item -- the standard intra-state convention --
-    // not a separately tracked figure) ----
+    // not a separately tracked figure). Grand Total is rounded to the
+    // nearest rupee (matching how printed tax invoices are settled), with
+    // the rounding adjustment shown on its own "Round Off" line so the
+    // figures always foot correctly — Add (+) when rounding up, Less (-)
+    // when rounding down, same convention as the paper invoice. ----
     const taxable = Number(inv.subTotal || 0) - Number(inv.discountAmount || 0);
     const halfTax = Number(inv.taxAmount || 0) / 2;
+    const rawTotal = Number(inv.totalAmount || 0);
+    const roundedTotal = Math.round(rawTotal);
+    const roundOff = roundedTotal - rawTotal;
     document.getElementById("pvSubtotal").textContent = formatCurrency(inv.subTotal);
     document.getElementById("pvDiscount").textContent = formatCurrency(inv.discountAmount);
     document.getElementById("pvTaxable").textContent = formatCurrency(taxable);
     document.getElementById("pvCgst").textContent = formatCurrency(halfTax);
     document.getElementById("pvSgst").textContent = formatCurrency(halfTax);
-    document.getElementById("pvGrandTotal").textContent = formatCurrency(inv.totalAmount);
+    document.getElementById("pvRoundOffLabel").textContent = roundOff < 0 ? "Less: Round Off" : "Add: Round Off";
+    document.getElementById("pvRoundOff").textContent = (roundOff < 0 ? "(-) " : "(+) ") + formatCurrency(Math.abs(roundOff));
+    document.getElementById("pvGrandTotal").textContent = formatCurrency(roundedTotal);
     document.getElementById("pvPaidAmount").textContent = formatCurrency(inv.paidAmount);
     document.getElementById("pvBalanceAmount").textContent = formatCurrency(inv.balanceAmount);
     document.getElementById("pvAmountWords").textContent =
-        "Rs. " + numberToWordsIndian(inv.totalAmount) + " Only";
-
-    // ---- Notes ----
-    const terms = (company.terms || "").split("\n").map(t => t.trim()).filter(Boolean);
-    document.getElementById("pvTerms").innerHTML = terms.length
-        ? terms.map(t => `<li>${escapeHtml(t)}</li>`).join("")
-        : `<li>Set your notes in Settings → Company Profile.</li>`;
+        "Rs. " + numberToWordsIndian(roundedTotal) + " Only";
 
     // ---- Bank details + Scan & Pay ----
     const bankLines = [];
@@ -4188,7 +4336,8 @@ function downloadInvoicePdf(inv){
         filename,
         image: { type: "jpeg", quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ["avoid-all", "css", "legacy"] }
     }).from(document.getElementById("invoicePrintArea")).save()
         .then(() => { hideSpinner(); showToast("Downloaded", `${filename} generated successfully.`, "success"); })
         .catch(() => { hideSpinner(); showToast("PDF failed", "Could not generate the invoice PDF.", "error"); });
@@ -4226,14 +4375,44 @@ async function loadAndRenderPayments(){
         return;
     }
     STATE.payments = unwrap(payRes.value, []);
-    renderPaymentSummaryCards(summaryRes.status === "fulfilled" ? unwrap(summaryRes.value, {}) : {});
+    // Bug fix: GET /dashboard/payment-summary is genuinely admin-only on the
+    // backend (DashboardController is class-level @PreAuthorize("hasRole('ADMIN')")),
+    // so for an SS/Distributor login this was never even called — the four
+    // cards (Cash/UPI/Card/Bank) always rendered ₹0, forever, no matter how
+    // many payments that party actually recorded. STATE.payments is already
+    // scoped correctly to "my payments" for that role (see
+    // PaymentService.getAllPayments()), so for non-admin just total it up
+    // client-side instead of leaving the cards permanently blank.
+    const summary = isAdminRole
+        ? (summaryRes.status === "fulfilled" ? unwrap(summaryRes.value, {}) : {})
+        : computePaymentSummaryFromPayments(STATE.payments);
+    renderPaymentSummaryCards(summary);
     renderPayments();
 }
 
+// Mirrors DashboardService.getPaymentSummary()'s method -> bucket mapping
+// exactly, so an SS/Distributor's client-computed cards agree with what
+// Admin sees computed server-side for the same data.
+function computePaymentSummaryFromPayments(payments){
+    const totals = { cashAmount: 0, upiAmount: 0, cardAmount: 0, bankAmount: 0 };
+    (payments || []).forEach(p => {
+        const method = String(p.paymentMethod || "").trim().toUpperCase();
+        const amount = Number(p.amount) || 0;
+        if (method === "CASH") totals.cashAmount += amount;
+        else if (["UPI","GPAY","PHONEPE","PAYTM"].includes(method)) totals.upiAmount += amount;
+        else if (method === "CARD") totals.cardAmount += amount;
+        else if (["BANK","BANK_TRANSFER","NEFT","RTGS","IMPS"].includes(method)) totals.bankAmount += amount;
+        // CHEQUE and anything unrecognized has no card on this page, same as admin's version.
+    });
+    return totals;
+}
+
 function renderPaymentSummaryCards(summary){
-    // These totals come straight from GET /dashboard/payment-summary, which
-    // is computed server-side from real Payment rows, so they stay correct
-    // even while PaymentResponse itself can't render individual records.
+    // Admin: these totals come straight from GET /dashboard/payment-summary,
+    // computed server-side from every Payment row. Non-admin: computed
+    // client-side above from this party's own scoped payment list (see
+    // computePaymentSummaryFromPayments) since that endpoint isn't callable
+    // for their role.
     document.getElementById("paymCash").textContent = formatCurrency(summary.cashAmount);
     document.getElementById("paymUpi").textContent = formatCurrency(summary.upiAmount);
     document.getElementById("paymCard").textContent = formatCurrency(summary.cardAmount);
@@ -4670,6 +4849,15 @@ function openRecordPaymentModal(preselectedInvoice){
             modal.hide();
             resetPaymentProofState();
             showToast("Payment recorded", "Payment saved successfully.", "success");
+            // Bug fix: loadAndRenderPayments() only (re)loads STATE.invoices
+            // when it's currently empty -- a plain optimization for page
+            // load, but it meant that if invoices had already been viewed
+            // earlier in the session, "Pending Collection" kept showing this
+            // invoice's OLD balance/status forever after paying it (the
+            // server-side balance was correctly updated, the browser's
+            // cached copy just never got told). Force a fresh invoice list
+            // first so Pending Collection reflects this payment immediately.
+            await loadAndRenderInvoices();
             await loadAndRenderPayments();
             refreshDashboard();
         }catch(err){
@@ -5135,13 +5323,9 @@ function loadCompanySettingsIntoForm(){
     if (!document.getElementById("companyName")) return;
     let saved = {};
     try{ saved = JSON.parse(localStorage.getItem(COMPANY_SETTINGS_KEY) || "{}"); }catch(e){ saved = {}; }
-    document.getElementById("companyName").value = saved.name || "Brisk Traders";
-    document.getElementById("companyGst").value = saved.gst || "";
+    // Cosmetic-only fields (no backend field for these yet) stay in localStorage.
     document.getElementById("companyPan").value = saved.pan || "";
-    document.getElementById("companyEmail").value = saved.email || "";
-    document.getElementById("companyPhone").value = saved.phone || "";
     document.getElementById("companyWebsite").value = saved.website || "";
-    document.getElementById("companyAddress").value = saved.address || "";
     document.getElementById("companyBankName").value = saved.bankName || "";
     document.getElementById("companyBankBranch").value = saved.bankBranch || "";
     document.getElementById("companyBankAccount").value = saved.bankAccount || "";
@@ -5150,6 +5334,27 @@ function loadCompanySettingsIntoForm(){
     document.getElementById("companyPaymentTermsDays").value = saved.paymentTermsDays || 10;
     if (saved.terms) document.getElementById("companyTerms").value = saved.terms;
     if (saved.logo) document.getElementById("companyLogoPreview").src = saved.logo;
+
+    // Name/GST/FSSAI/Address/City/State/Pincode/Phone/Email are the real
+    // seller details printed on Company -> Super Stockist invoices — these
+    // load from the backend (CompanySettingsController), not localStorage,
+    // so what Admin sees here always matches what actually prints.
+    apiRequest(ENDPOINTS.companySettings).then(res => {
+        const data = res && res.data;
+        if (!data) return;
+        document.getElementById("companyName").value = data.companyName || "";
+        document.getElementById("companyGst").value = data.gstNumber || "";
+        document.getElementById("companyFssai").value = data.fssaiNumber || "";
+        document.getElementById("companyEmail").value = data.email || "";
+        document.getElementById("companyPhone").value = data.phone || "";
+        document.getElementById("companyAddress").value = data.address || "";
+        document.getElementById("companyCity").value = data.city || "";
+        document.getElementById("companyState").value = data.state || "";
+        document.getElementById("companyPincode").value = data.pincode || "";
+    }).catch(() => {
+        // Read-only fallback: leave whatever was already in the fields
+        // (e.g. the HTML defaults) rather than blocking the rest of Settings.
+    });
 }
 
 /* ---------- Role-aware Settings ----------
@@ -5313,16 +5518,12 @@ document.getElementById("logoUploadInput")?.addEventListener("change", (e) => {
     showToast("Logo updated", "Company logo saved for invoice PDFs.", "success");
 });
 
-document.getElementById("companyForm")?.addEventListener("submit", (e) => {
+document.getElementById("companyForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const settings = {
-        name: document.getElementById("companyName").value,
-        gst: document.getElementById("companyGst").value,
+    // Cosmetic-only fields (no backend column yet) — kept in localStorage.
+    const cosmetic = {
         pan: document.getElementById("companyPan").value,
-        email: document.getElementById("companyEmail").value,
-        phone: document.getElementById("companyPhone").value,
         website: document.getElementById("companyWebsite").value,
-        address: document.getElementById("companyAddress").value,
         bankName: document.getElementById("companyBankName").value,
         bankBranch: document.getElementById("companyBankBranch").value,
         bankAccount: document.getElementById("companyBankAccount").value,
@@ -5332,8 +5533,29 @@ document.getElementById("companyForm")?.addEventListener("submit", (e) => {
         terms: document.getElementById("companyTerms").value,
         logo: document.getElementById("companyLogoPreview").src,
     };
-    localStorage.setItem(COMPANY_SETTINGS_KEY, JSON.stringify(settings));
-    showToast("Saved", "Company details saved. Every invoice will use this from now on.", "success");
+    localStorage.setItem(COMPANY_SETTINGS_KEY, JSON.stringify(cosmetic));
+
+    // Real seller details — persisted server-side so every invoice PDF
+    // (generated on the backend) picks these up immediately.
+    try{
+        await apiRequest(ENDPOINTS.companySettings, {
+            method: "PUT",
+            body: {
+                companyName: document.getElementById("companyName").value,
+                gstNumber: document.getElementById("companyGst").value,
+                fssaiNumber: document.getElementById("companyFssai").value,
+                email: document.getElementById("companyEmail").value,
+                phone: document.getElementById("companyPhone").value,
+                address: document.getElementById("companyAddress").value,
+                city: document.getElementById("companyCity").value,
+                state: document.getElementById("companyState").value,
+                pincode: document.getElementById("companyPincode").value,
+            },
+        });
+        showToast("Saved", "Company details saved. Every new invoice will use this from now on.", "success");
+    }catch(err){
+        showToast("Save failed", err.message || "Could not save company details.", "error");
+    }
 });
 document.getElementById("profileForm").addEventListener("submit", (e) => {
     e.preventDefault();
