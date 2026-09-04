@@ -682,28 +682,19 @@ document.querySelectorAll("[data-section]").forEach(el => {
 });
 
 /* ---------------- Network auto refresh ----------------
-   Two parts:
-   1. Periodic refresh: every 45s, silently re-runs the currently visible
-      section's own loader (the same function showSection() already calls
-      when the user navigates there) so lists/dashboards/ledgers stay
-      live without a manual reload -- skipped while the tab is hidden
-      (backgrounded) or the browser reports itself offline, so it never
-      fights a page the user isn't even looking at or piles up failed
-      requests while disconnected.
-   2. Connectivity banner: the browser's online/offline events show a
-      fixed banner so the user knows why requests might be failing, and
-      immediately re-run the current section's loader the moment
-      connectivity returns, instead of leaving stale data on screen
-      until their next manual action. */
+   Connectivity banner only: the browser's online/offline events show a
+   fixed banner so the user knows why requests might be failing, and
+   immediately re-run the current section's loader the moment connectivity
+   returns, instead of leaving stale data on screen until their next manual
+   action.
+   No periodic polling here on purpose -- this used to silently re-run the
+   current section's loader every 20s (skipped while backgrounded/offline)
+   so lists/dashboards stayed live without a manual reload, but that made
+   the whole app feel like it kept refreshing itself, which is exactly what
+   was asked to be removed. Data now only updates on an actual reconnect or
+   the user's own actions (create/delete calls already refresh instantly)
+   or an explicit page reload. */
 (function setupNetworkAutoRefresh(){
-    // 20s, not 45s: mutations made in THIS session already refresh
-    // instantly (every create/delete calls refreshDashboard), so this poll
-    // only covers changes made elsewhere -- another user approving a
-    // return, a distributor raising an invoice. 20s keeps that close to
-    // live without hammering the API, and it is skipped entirely while the
-    // tab is backgrounded or offline.
-    const AUTO_REFRESH_MS = 20000;
-
     const banner = document.createElement("div");
     banner.id = "networkStatusBanner";
     banner.setAttribute("role", "status");
@@ -727,16 +718,6 @@ document.querySelectorAll("[data-section]").forEach(el => {
         banner.style.display = "block";
     });
     if (!navigator.onLine) banner.style.display = "block";
-
-    setInterval(() => {
-        if (document.visibilityState !== "visible") return;
-        if (!navigator.onLine) return;
-        runCurrentSectionRefresher();
-        // The bell is part of the topbar, not any one section, so it
-        // refreshes on every tick regardless of which section is active
-        // (only once logged in — the bell markup only exists in appWrapper).
-        if (getToken() && typeof loadAndRenderNotificationBell === "function") loadAndRenderNotificationBell();
-    }, AUTO_REFRESH_MS);
 })();
 
 /* ---------------- Collapsible sidebar groups (accordion) ----------------
