@@ -1,6 +1,7 @@
 package com.spartan.dms.util;
 
 import com.spartan.dms.exception.FileStorageException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -15,8 +16,27 @@ import java.util.UUID;
 @Component
 public class FileUploadUtil {
 
-    /** Root folder on disk. Everything is stored under here, one subfolder per feature. */
-    private static final String UPLOAD_ROOT = "uploads";
+    /**
+     * Root folder on disk. Everything is stored under here, one subfolder
+     * per feature. Bug fix: this used to be the bare relative string
+     * "uploads", which resolves against the JVM's current working
+     * directory — every time this project got re-extracted into a new
+     * folder, that root silently moved with it, orphaning every file
+     * uploaded before the move (see the app.upload-dir comment in
+     * application.properties). Now backed by an absolute, configured path
+     * that stays put across moves.
+     */
+    // The ":${user.home}/brisk-dms-uploads" fallback here is deliberate and
+    // NOT redundant with the same default in application.properties: if the
+    // running app's target/classes/application.properties is ever stale
+    // (missing the app.upload-dir line -- e.g. IntelliJ hot-restarted the
+    // .java changes without re-running Maven's resource-copy step), Spring
+    // would otherwise fail to start with "Could not resolve placeholder
+    // 'app.upload-dir'". Baking the same default straight into the
+    // annotation means the app still boots correctly even from a stale
+    // build.
+    @Value("${app.upload-dir:${user.home}/brisk-dms-uploads}")
+    private String uploadRoot;
 
     /**
      * Result of a successful upload: everything a caller needs to persist a
@@ -72,7 +92,7 @@ public class FileUploadUtil {
         String storedFileName = UUID.randomUUID() + "_" + originalName;
 
         try {
-            Path uploadPath = Paths.get(UPLOAD_ROOT, subDirectory);
+            Path uploadPath = Paths.get(uploadRoot, subDirectory);
             if (!Files.exists(uploadPath)) {
                 Files.createDirectories(uploadPath);
             }
@@ -100,12 +120,12 @@ public class FileUploadUtil {
     }
 
     public void deleteFile(String relativePath) throws IOException {
-        Path filePath = Paths.get(UPLOAD_ROOT).resolve(relativePath);
+        Path filePath = Paths.get(uploadRoot).resolve(relativePath);
         Files.deleteIfExists(filePath);
     }
 
     public Path getFile(String relativePath) {
-        return Paths.get(UPLOAD_ROOT).resolve(relativePath);
+        return Paths.get(uploadRoot).resolve(relativePath);
     }
 
     /**
