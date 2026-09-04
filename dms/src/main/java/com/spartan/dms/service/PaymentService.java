@@ -113,6 +113,7 @@ public class PaymentService {
         payment.setDistributor(distributor);
         payment.setShop(shop);
         payment.setSuperStockist(superStockist);
+        stampCreator(payment);
 
         // Save Payment
         payment = paymentRepository.save(payment);
@@ -188,8 +189,27 @@ public class PaymentService {
         }
     }
 
+    // Records WHO recorded this payment — mirrors InvoiceService.stampCreator()
+    // exactly. Best-effort: a payment created outside a request context
+    // (seed data, a future scheduled job) is still saved, just unattributed.
+    private void stampCreator(Payment payment) {
+        try {
+            com.spartan.dms.entity.User me = securityUtils.getCurrentUser();
+            payment.setCreatedByUserId(me.getId());
+            payment.setCreatedByUsername(me.getUsername());
+            payment.setCreatedByRole(me.getRole() != null ? me.getRole().getRoleName() : null);
+        } catch (RuntimeException ex) {
+            payment.setCreatedByUsername("SYSTEM");
+        }
+    }
+
     // A payment's own party (distributor or superStockist -- whichever this
-    // row actually has) determines who may view/act on it. Never assumes
+    // row actually has) determines who may view/act on a SPECIFIC payment
+    // (detail view, delete, verify) -- intentionally broader than
+    // getAllPayments()'s list scoping below, same relationship as
+    // InvoiceService's assertInvoiceAccess() vs scopedInvoices(): an SS can
+    // still open/settle a payment tied to their own distributor even though
+    // it won't appear in the SS's own "Payment History" list. Never assumes
     // distributor is set -- that's null for COMPANY_TO_SUPER_STOCKIST rows.
     private void assertPaymentAccess(Payment payment) {
         if (payment.getDistributor() != null) {
@@ -241,25 +261,27 @@ public class PaymentService {
                 null, null, headers, rows, totalRow);
     }
 
+    /**
+     * The payment LIST each role sees: strictly the payments that role
+     * personally recorded. Admin sees every payment from every role; a
+     * Super Stockist sees only payments they recorded, a Distributor only
+     * payments they recorded. No peer ever sees another peer's payments —
+     * an SS does NOT see payments their own downstream distributors
+     * recorded, matching InvoiceService.scopedInvoices() exactly (Admin
+     * sees all, else strictly createdByUserId). This used to reach through
+     * the distributor->superStockist hierarchy so an SS's list also
+     * included every payment any of their distributors ever made, which is
+     * why "Payment History" didn't match "Invoices" (each SS/DP sees only
+     * their own) — that reach-through is removed here.
+     */
     public ApiResponse<List<PaymentResponse>> getAllPayments() {
 
         List<Payment> paymentEntities;
-
-        if (securityUtils.isSuperStockist()) {
-            Long ssId = securityUtils.getScopedSuperStockistId();
-            java.util.LinkedHashMap<Long, Payment> merged = new java.util.LinkedHashMap<>();
-            for (Payment p : paymentRepository.findByDistributor_SuperStockist_Id(ssId)) {
-                merged.put(p.getId(), p);
-            }
-            for (Payment p : paymentRepository.findBySuperStockistId(ssId)) {
-                merged.put(p.getId(), p);
-            }
-            paymentEntities = new java.util.ArrayList<>(merged.values());
+        if (securityUtils.isAdmin()) {
+            paymentEntities = paymentRepository.findAll();
         } else {
-            Long scopedDistributorId = securityUtils.getScopedDistributorId();
-            paymentEntities = (scopedDistributorId != null)
-                    ? paymentRepository.findByDistributorId(scopedDistributorId)
-                    : paymentRepository.findAll();
+            Long myUserId = securityUtils.getCurrentUser().getId();
+            paymentEntities = paymentRepository.findByCreatedByUserId(myUserId);
         }
 
         List<PaymentResponse> payments = paymentEntities

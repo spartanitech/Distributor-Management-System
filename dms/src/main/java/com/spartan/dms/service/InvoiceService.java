@@ -57,6 +57,7 @@ public class InvoiceService {
     private final AuditLogService auditLogService;
     private final ProductPricingService productPricingService;
     private final ProductLedgerService productLedgerService;
+    private final CompanySettingsService companySettingsService;
 
     @org.springframework.transaction.annotation.Transactional
     public ApiResponse<InvoiceResponse> createInvoice(InvoiceRequest request) {
@@ -258,7 +259,14 @@ public class InvoiceService {
                 tierName = "Selling Price";
                 break;
         }
-        if (price == null) {
+        // BUG fix: a price of exactly zero used to sail straight through
+        // here (only `== null` was rejected), so a product whose tier
+        // price had never actually been configured — but happened to be
+        // stored as 0.00 rather than left null — silently produced a
+        // free (₹0) line item that saveInvoiceItems() would then accept
+        // without complaint. Reject non-positive prices the same way as
+        // a missing one: a real price is always > 0.
+        if (price == null || price.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BadRequestException("Admin has not set a " + tierName + " for product '"
                     + product.getProductName() + "' yet — set it in Products (or this partner's custom price) before invoicing at this level.");
         }
@@ -332,6 +340,7 @@ public class InvoiceService {
                     .invoice(invoice)
                     .product(product)
                     .quantity(itemReq.getQuantity())
+                    .shippedQuantity(itemReq.getShippedQuantity() != null ? itemReq.getShippedQuantity() : itemReq.getQuantity())
                     .unitPrice(unitPrice)
                     .discountAmount(discount)
                     .gstPercentage(gstPct)
@@ -688,8 +697,11 @@ public class InvoiceService {
                 .productId(ii.getProduct() != null ? ii.getProduct().getId() : null)
                 .productName(ii.getProduct() != null ? ii.getProduct().getProductName() : null)
                 .productCode(ii.getProduct() != null ? ii.getProduct().getProductCode() : null)
+                .hsnSacCode(ii.getProduct() != null ? ii.getProduct().getHsnSacCode() : null)
+                .mrp(ii.getProduct() != null ? ii.getProduct().getMrp() : null)
                 .unit(ii.getProduct() != null ? ii.getProduct().getUnit() : null)
                 .quantity(ii.getQuantity())
+                .shippedQuantity(ii.getShippedQuantity())
                 .unitPrice(ii.getUnitPrice())
                 .discountAmount(ii.getDiscountAmount())
                 .gstPercentage(ii.getGstPercentage())
@@ -913,9 +925,14 @@ public class InvoiceService {
     }
 
     /**
-     * Generates the actual invoice PDF (previously a stub that returned a
-     * plain string with no file at all). Includes a QR code that encodes
-     * the invoice number + total for quick verification.
+     * Generates the actual invoice PDF as a full itemised tax invoice
+     * (Sl No / Description / HSN-SAC / MRP / Qty / Rate / Disc.% / Amount
+     * per line, then CGST + SGST + Round Off + Total + amount in words) —
+     * matching the paper invoice format this business already uses.
+     * Seller block is whoever raised this leg of the chain (Company for
+     * COMPANY_TO_SUPER_STOCKIST, the Super Stockist for
+     * SUPER_STOCKIST_TO_DISTRIBUTOR, the Distributor for
+     * DISTRIBUTOR_TO_SHOP); buyer is the recipient one level down.
      */
     public byte[] generateInvoicePdfBytes(Long id) {
 
@@ -924,23 +941,119 @@ public class InvoiceService {
 
         assertInvoiceAccess(invoice);
 
-        Double total = invoice.getTotalAmount() != null ? invoice.getTotalAmount().doubleValue() : 0.0;
+        PdfGenerator.InvoiceParty seller;
+        PdfGenerator.InvoiceParty buyer;
+        String fssai = null;
 
-        String billedTo = invoice.getShop() != null ? invoice.getShop().getShopName()
-                : invoice.getDistributor() != null ? invoice.getDistributor().getDistributorName()
-                : invoice.getSuperStockist() != null ? invoice.getSuperStockist().getSuperStockistName()
-                : "";
+        switch (invoice.getInvoiceLevel()) {
+            case COMPANY_TO_SUPER_STOCKIST -> {
+                com.spartan.dms.entity.CompanySettings company = companySettingsService.getOrCreate();
+                seller = new PdfGenerator.InvoiceParty(
+                        company.getCompanyName(),
+                        company.getAddress(),
+                        cityStatePin(company.getCity(), company.getState(), company.getPincode()),
+                        company.getGstNumber(),
+                        company.getPhone());
+                fssai = company.getFssaiNumber();
+                buyer = superStockistParty(invoice.getSuperStockist());
+            }
+            case SUPER_STOCKIST_TO_DISTRIBUTOR -> {
+                seller = superStockistParty(invoice.getSuperStockist());
+                buyer = distributorParty(invoice.getDistributor());
+            }
+            default -> {
+                seller = distributorParty(invoice.getDistributor());
+                buyer = shopParty(invoice.getShop());
+            }
+        }
 
-        String billedBy = invoice.getDistributor() != null && invoice.getShop() != null ? invoice.getDistributor().getDistributorName()
-                : invoice.getSuperStockist() != null ? invoice.getSuperStockist().getSuperStockistName()
-                : "Company";
+        List<com.spartan.dms.entity.InvoiceItem> itemEntities = invoiceItemRepository.findByInvoiceIdWithProduct(id);
 
-        return pdfGenerator.generateInvoicePdf(
+        List<PdfGenerator.InvoiceLineItem> lines = new java.util.ArrayList<>();
+        int slNo = 1;
+        for (com.spartan.dms.entity.InvoiceItem item : itemEntities) {
+            com.spartan.dms.entity.Product product = item.getProduct();
+            BigDecimal qty = BigDecimal.valueOf(item.getQuantity() != null ? item.getQuantity() : 0);
+            BigDecimal unitPrice = item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO;
+            BigDecimal discount = item.getDiscountAmount() != null ? item.getDiscountAmount() : BigDecimal.ZERO;
+            BigDecimal gstAmount = item.getGstAmount() != null ? item.getGstAmount() : BigDecimal.ZERO;
+            BigDecimal lineValue = unitPrice.multiply(qty);
+            // "Amount" printed per line is post-discount, pre-GST — GST is
+            // shown only once as a CGST+SGST total at the bottom, matching
+            // the paper invoice format (see class javadoc on that method).
+            BigDecimal amount = (item.getTotalAmount() != null ? item.getTotalAmount() : BigDecimal.ZERO).subtract(gstAmount);
+            BigDecimal rate = qty.compareTo(BigDecimal.ZERO) > 0
+                    ? amount.divide(qty, 2, java.math.RoundingMode.HALF_UP) : unitPrice;
+            BigDecimal discPercent = lineValue.compareTo(BigDecimal.ZERO) > 0
+                    ? discount.multiply(BigDecimal.valueOf(100)).divide(lineValue, 2, java.math.RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO;
+
+            lines.add(new PdfGenerator.InvoiceLineItem(
+                    slNo++,
+                    product != null ? product.getProductName() : "\u2014",
+                    product != null ? product.getHsnSacCode() : null,
+                    product != null ? product.getMrp() : null,
+                    item.getQuantity(),
+                    product != null ? product.getUnit() : null,
+                    rate,
+                    discPercent,
+                    amount));
+        }
+
+        BigDecimal subTotal = invoice.getSubTotal() != null ? invoice.getSubTotal() : BigDecimal.ZERO;
+        BigDecimal taxAmount = invoice.getTaxAmount() != null ? invoice.getTaxAmount() : BigDecimal.ZERO;
+        BigDecimal cgst = taxAmount.divide(BigDecimal.valueOf(2), 2, java.math.RoundingMode.HALF_UP);
+        BigDecimal sgst = taxAmount.subtract(cgst);
+        BigDecimal rawTotal = invoice.getTotalAmount() != null ? invoice.getTotalAmount() : BigDecimal.ZERO;
+        BigDecimal roundedTotal = rawTotal.setScale(0, java.math.RoundingMode.HALF_UP);
+        BigDecimal roundOff = roundedTotal.subtract(rawTotal);
+
+        return pdfGenerator.generateTaxInvoicePdf(
                 invoice.getInvoiceNumber(),
-                billedTo,
-                billedBy,
-                total
+                invoice.getInvoiceDate(),
+                fssai,
+                seller,
+                buyer,
+                lines,
+                subTotal,
+                cgst,
+                sgst,
+                roundOff,
+                roundedTotal,
+                com.spartan.dms.util.NumberToWordsUtil.rupeesInWords(roundedTotal)
         );
+    }
+
+    private PdfGenerator.InvoiceParty superStockistParty(SuperStockist s) {
+        if (s == null) return new PdfGenerator.InvoiceParty(null, null, null, null, null);
+        return new PdfGenerator.InvoiceParty(s.getSuperStockistName(), s.getAddress(),
+                cityStatePin(s.getCity(), s.getState(), s.getPincode()), s.getGstNumber(), s.getMobileNumber());
+    }
+
+    private PdfGenerator.InvoiceParty distributorParty(Distributor d) {
+        if (d == null) return new PdfGenerator.InvoiceParty(null, null, null, null, null);
+        return new PdfGenerator.InvoiceParty(d.getDistributorName(), d.getAddress(),
+                cityStatePin(d.getCity(), d.getState(), d.getPincode()), d.getGstNumber(), d.getMobileNumber());
+    }
+
+    private PdfGenerator.InvoiceParty shopParty(Shop sh) {
+        if (sh == null) return new PdfGenerator.InvoiceParty(null, null, null, null, null);
+        return new PdfGenerator.InvoiceParty(sh.getShopName(), sh.getAddress(),
+                cityStatePin(sh.getCity(), sh.getState(), sh.getPincode()), sh.getGstNumber(), sh.getMobileNumber());
+    }
+
+    private String cityStatePin(String city, String state, String pincode) {
+        StringBuilder sb = new StringBuilder();
+        if (city != null && !city.isBlank()) sb.append(city);
+        if (state != null && !state.isBlank()) {
+            if (sb.length() > 0) sb.append(", ");
+            sb.append(state);
+        }
+        if (pincode != null && !pincode.isBlank()) {
+            if (sb.length() > 0) sb.append(" - ");
+            sb.append(pincode);
+        }
+        return sb.length() > 0 ? sb.toString() : null;
     }
 
     public ApiResponse<String> downloadInvoice(Long id) {
