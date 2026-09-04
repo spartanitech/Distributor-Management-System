@@ -1,5 +1,6 @@
 package com.spartan.dms.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
@@ -31,9 +32,20 @@ import java.nio.file.Paths;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
+    // Bug fix: this used to be Paths.get("uploads") -- relative to whatever
+    // folder the JVM happened to be started from, and out of sync the
+    // moment that changed. Now reads the same app.upload-dir property
+    // FileUploadUtil writes to, so this handler always serves from wherever
+    // files were actually saved.
+    // Same defensive default as FileUploadUtil.uploadRoot -- see the comment
+    // there. Keeps the app bootable even if target/classes/application.properties
+    // is a stale build missing the app.upload-dir line.
+    @Value("${app.upload-dir:${user.home}/brisk-dms-uploads}")
+    private String uploadRoot;
+
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        Path uploadDir = Paths.get("uploads").toAbsolutePath().normalize();
+        Path uploadDir = Paths.get(uploadRoot).toAbsolutePath().normalize();
 
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations("file:" + uploadDir + "/")
