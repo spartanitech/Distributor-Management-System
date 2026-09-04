@@ -22,6 +22,10 @@ public class ProductResponse {
 
     private String barcode;
 
+    private String hsnSacCode;
+
+    private String batchNumber;
+
     private Long categoryId;
     private String categoryName;
 

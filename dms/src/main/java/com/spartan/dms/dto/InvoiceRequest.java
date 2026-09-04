@@ -57,6 +57,7 @@ public class InvoiceRequest {
     public static class InvoiceItemRequest {
         private Long productId;
         private Integer quantity;
+        private Integer shippedQuantity;
         private BigDecimal unitPrice;
         private BigDecimal discountAmount;
         private BigDecimal gstPercentage;

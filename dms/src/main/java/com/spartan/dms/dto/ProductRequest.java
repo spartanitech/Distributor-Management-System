@@ -43,6 +43,10 @@ public class ProductRequest {
 
     private String barcode;
 
+    private String hsnSacCode;
+
+    private String batchNumber;
+
     @NotNull(message = "Category is required")
     private Long categoryId;
 

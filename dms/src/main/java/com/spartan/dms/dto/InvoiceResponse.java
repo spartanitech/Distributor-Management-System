@@ -78,8 +78,11 @@ public class InvoiceResponse {
         private Long productId;
         private String productName;
         private String productCode;
+        private String hsnSacCode;
+        private BigDecimal mrp;
         private String unit;
         private Integer quantity;
+        private Integer shippedQuantity;
         private BigDecimal unitPrice;
         private BigDecimal discountAmount;
         private BigDecimal gstPercentage;
