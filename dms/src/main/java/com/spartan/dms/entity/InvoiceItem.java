@@ -29,6 +29,13 @@ public class InvoiceItem extends BaseEntity {
     @Column(name = "quantity", nullable = false)
     private Integer quantity;
 
+    // Quantity actually dispatched for this line — purely informational,
+    // printed on the invoice as "Qty Shipped" alongside "quantity" (the
+    // billed quantity that drives pricing, tax and stock deduction).
+    // Defaults to the same value as quantity when not given separately.
+    @Column(name = "shipped_quantity")
+    private Integer shippedQuantity;
+
     @Column(name = "unit_price", precision = 12, scale = 2, nullable = false)
     private BigDecimal unitPrice;
 

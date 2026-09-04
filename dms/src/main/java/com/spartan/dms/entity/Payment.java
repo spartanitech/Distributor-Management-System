@@ -88,4 +88,19 @@ public class Payment extends BaseEntity {
 
     @Column(name = "remarks", length = 500)
     private String remarks;
+
+    // Who actually recorded this payment, as opposed to which parties it's
+    // between (distributor/shop/superStockist above) — same distinction as
+    // Invoice.createdByUserId, and needed for the same reason: an SS's own
+    // distributor recording a payment is a party on that Payment row, but
+    // it isn't the SS's OWN payment. Populated on create (see
+    // PaymentService.stampCreator()) and never changed afterwards.
+    @Column(name = "created_by_user_id")
+    private Long createdByUserId;
+
+    @Column(name = "created_by_username", length = 100)
+    private String createdByUsername;
+
+    @Column(name = "created_by_role", length = 40)
+    private String createdByRole;
 }

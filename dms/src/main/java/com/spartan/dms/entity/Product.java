@@ -27,6 +27,18 @@ public class Product extends BaseEntity {
     @Column(name = "barcode", unique = true, length = 100)
     private String barcode;
 
+    // Tax classification code printed on invoice line items (HSN for
+    // goods, SAC for services) — e.g. "090931". Optional: older products
+    // created before this field existed simply print blank on invoices.
+    @Column(name = "hsn_sac_code", length = 20)
+    private String hsnSacCode;
+
+    // Current production/lot batch this stock belongs to. Purely
+    // informational (not used for FIFO/lot-wise stock tracking) — shown
+    // on the product list and on invoice line items.
+    @Column(name = "batch_number", length = 50)
+    private String batchNumber;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
