@@ -28,11 +28,13 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     @Query("SELECT p FROM Payment p WHERE p.distributor.id = :distributorId ORDER BY p.paymentDate ASC, p.id ASC")
     List<Payment> findByDistributorIdOrderByPaymentDateAsc(@org.springframework.data.repository.query.Param("distributorId") Long distributorId);
 
-    // A Super Stockist's payments: every payment made by any distributor
-    // assigned to them.
-    List<Payment> findByDistributor_SuperStockist_Id(Long superStockistId);
-
     List<Payment> findByPaymentStatus(String paymentStatus);
+
+    // The "Payment History" list each role sees: strictly the payments that
+    // role personally recorded — mirrors InvoiceRepository.findByCreatedByUserId
+    // / InvoiceService.scopedInvoices() exactly, so Admin/SS/Distributor
+    // visibility rules are consistent between invoices and payments.
+    List<Payment> findByCreatedByUserId(Long createdByUserId);
 
     // Cash Book / Bank Book / Day Book — every payment with shop/distributor
     // eagerly fetched so the service can show the party name without N+1

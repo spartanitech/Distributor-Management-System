@@ -51,6 +51,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsBySuperStockistId(Long superStockistId);
 
+    // Used by PaymentCreatorBackfillRunner to attribute pre-existing Payment
+    // rows (recorded before Payment.createdByUserId existed) to whichever
+    // login account is scoped to that payment's distributor/super stockist.
+    List<User> findByDistributorId(Long distributorId);
+
+    List<User> findBySuperStockistId(Long superStockistId);
+
     // Used to refuse deleting/deactivating/demoting the last remaining
     // active admin account -- once that count hits zero there is no way
     // back in (self-registration never grants ADMIN, see AuthService).
