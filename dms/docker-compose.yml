@@ -33,6 +33,7 @@ services:
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       APP_FRONTEND_BASE_URL: ${APP_FRONTEND_BASE_URL:-http://localhost:8080}
       SPRING_PROFILES_ACTIVE: local
+      UPLOAD_DIR: /app/uploads   # must match the volume mount below + the dir Dockerfile chowns to "dms"; without this, uploads fall back to ${user.home}/brisk-dms-uploads (/home/dms), which "dms" can't write to -> "Failed to store file ..." errors
     ports:
       - "8081:8080"
     volumes:
