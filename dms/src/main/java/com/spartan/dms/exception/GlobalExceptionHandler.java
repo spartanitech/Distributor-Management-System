@@ -116,6 +116,16 @@ public class GlobalExceptionHandler {
             ObjectOptimisticLockingFailureException ex,
             HttpServletRequest request) {
 
+        // Bug fix: this and handleDataIntegrity() below used to swallow the
+        // real Hibernate/SQL exception completely — the client got a clean
+        // generic message (correct), but NOTHING was written to the server
+        // log, so there was no way to ever find out what actually
+        // conflicted. Logging it here doesn't change what the client sees;
+        // it just means the real cause shows up in the console/log file the
+        // next time this fires.
+        log.warn("Optimistic locking conflict on {} {}: {}",
+                request.getMethod(), request.getRequestURI(), ex.getMessage());
+
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.CONFLICT.value())
@@ -131,6 +141,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleDataIntegrity(
             DataIntegrityViolationException ex,
             HttpServletRequest request) {
+
+        // Bug fix: log the real root cause (e.g. the actual SQL constraint
+        // name from getMostSpecificCause()) server-side. The client still
+        // only ever gets the safe generic message below — this is purely
+        // so the next occurrence is diagnosable instead of a black box.
+        Throwable root = ex.getMostSpecificCause();
+        log.error("Data integrity violation on {} {}: {}",
+                request.getMethod(), request.getRequestURI(),
+                root != null ? root.getMessage() : ex.getMessage(), ex);
 
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
