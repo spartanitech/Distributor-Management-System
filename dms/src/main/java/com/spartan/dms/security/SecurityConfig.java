@@ -70,6 +70,22 @@ public class SecurityConfig {
                                 "/js/**",
                                 "/images/**",
 
+                                // Product photos served from disk via WebConfig's
+                                // /uploads/** static handler. A plain <img src="...">
+                                // can't attach the Authorization: Bearer header the
+                                // JWT filter requires, so without this every product
+                                // image request came back 401 and rendered as a
+                                // broken image -- everywhere the product list, edit
+                                // form and invoice preview show a product photo.
+                                // Payment-proof uploads stay OUT of this allowlist on
+                                // purpose: WebConfig's resolver already 404s any
+                                // "paymentproofs/" path regardless of auth, but this
+                                // keeps that directory requiring a valid login too
+                                // (defense in depth) and is the reason this permits
+                                // "/uploads/products/**" specifically rather than a
+                                // blanket "/uploads/**".
+                                "/uploads/products/**",
+
                                 // NOTE: the real auth endpoints are mapped under
                                 // "/api/v1/auth/**" (see AuthController). The previous
                                 // "/api/auth/**" pattern never matched, which meant
