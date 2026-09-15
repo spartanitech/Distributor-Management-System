@@ -43,6 +43,7 @@ public class ProductService {
     private final com.spartan.dms.security.SecurityUtils securityUtils;
     private final AuditLogService auditLogService;
     private final FileUploadUtil fileUploadUtil;
+    private final com.spartan.dms.util.PdfGenerator pdfGenerator;
 
     private static final List<String> ALLOWED_IMAGE_CONTENT_TYPES =
             List.of("image/jpeg", "image/jpg", "image/png", "image/webp");
@@ -474,7 +475,55 @@ public class ProductService {
      * WarehouseService.getMyWarehouse()'s scoping.
      */
     @Transactional
-    public ApiResponse<com.spartan.dms.dto.MrpWiseStockResponse> getMrpWiseStock() {
+    public ApiResponse<com.spartan.dms.dto.MrpWiseStockResponse> getMrpWiseStock(String search) {
+
+        java.util.List<com.spartan.dms.dto.MrpWiseStockResponse.Group> groups = buildMrpWiseStockGroups(search);
+
+        return ApiResponse.<com.spartan.dms.dto.MrpWiseStockResponse>builder()
+                .success(true)
+                .message("MRP-wise Stock")
+                .data(com.spartan.dms.dto.MrpWiseStockResponse.builder().groups(groups).build())
+                .build();
+    }
+
+    /**
+     * PDF export of the same scoped MRP-wise stock view as getMrpWiseStock()
+     * (same search filter, same admin/Super Stockist/Distributor scoping) —
+     * flattened into one table (MRP / Product / Code / Quantity) since
+     * PdfGenerator.generateReportTablePdf() prints a single table rather
+     * than one per MRP group.
+     */
+    @Transactional
+    public byte[] exportMrpWiseStockPdf(String search) {
+
+        java.util.List<com.spartan.dms.dto.MrpWiseStockResponse.Group> groups = buildMrpWiseStockGroups(search);
+
+        String[] columnHeaders = {"MRP", "Product", "Code", "Quantity"};
+        java.util.List<String[]> rows = new java.util.ArrayList<>();
+        int grandTotal = 0;
+        for (com.spartan.dms.dto.MrpWiseStockResponse.Group g : groups) {
+            String mrpLabel = "₹" + (g.getMrp() != null ? g.getMrp().setScale(2, java.math.RoundingMode.HALF_UP).toPlainString() : "0.00");
+            for (com.spartan.dms.dto.MrpWiseStockResponse.ProductLine p : g.getProducts()) {
+                rows.add(new String[]{
+                        mrpLabel,
+                        p.getProductName() != null ? p.getProductName() : "",
+                        p.getProductCode() != null ? p.getProductCode() : "",
+                        String.valueOf(p.getQuantity() != null ? p.getQuantity() : 0)
+                });
+            }
+            grandTotal += g.getTotalQuantity() != null ? g.getTotalQuantity() : 0;
+        }
+        String[] totalRow = {"GRAND TOTAL", "", "", String.valueOf(grandTotal)};
+
+        String subtitle = (search != null && !search.isBlank())
+                ? "Filtered by: \"" + search + "\""
+                : "Current on-hand stock grouped by MRP price point";
+
+        return pdfGenerator.generateReportTablePdf("MRP-wise Stock Report", subtitle,
+                null, null, columnHeaders, rows, totalRow);
+    }
+
+    private java.util.List<com.spartan.dms.dto.MrpWiseStockResponse.Group> buildMrpWiseStockGroups(String search) {
 
         java.util.Map<Product, Integer> quantityByProduct = new java.util.LinkedHashMap<>();
 
@@ -496,6 +545,15 @@ public class ProductService {
                     quantityByProduct.merge(p, p.getStockQuantity(), Integer::sum);
                 }
             }
+        }
+
+        // Search filters by product name or product code, case-insensitive —
+        // matches Stock Summary's search behaviour (StockSummaryService).
+        String q = (search != null && !search.isBlank()) ? search.trim().toLowerCase() : null;
+        if (q != null) {
+            quantityByProduct.keySet().removeIf(p ->
+                    (p.getProductName() == null || !p.getProductName().toLowerCase().contains(q))
+                            && (p.getProductCode() == null || !p.getProductCode().toLowerCase().contains(q)));
         }
 
         java.util.Map<java.math.BigDecimal, java.util.List<com.spartan.dms.dto.MrpWiseStockResponse.ProductLine>> byMrp = new java.util.TreeMap<>();
@@ -521,10 +579,6 @@ public class ProductService {
                     .build());
         }
 
-        return ApiResponse.<com.spartan.dms.dto.MrpWiseStockResponse>builder()
-                .success(true)
-                .message("MRP-wise Stock")
-                .data(com.spartan.dms.dto.MrpWiseStockResponse.builder().groups(groups).build())
-                .build();
+        return groups;
     }
 }
