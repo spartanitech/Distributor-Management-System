@@ -903,6 +903,34 @@ document.getElementById("repairProfilesBtn")?.addEventListener("click", () => {
 document.getElementById("approvalsSearch").addEventListener("input", renderApprovals);
 document.getElementById("approvalsStatusFilter").addEventListener("change", renderApprovals);
 
+// Danger Zone (Settings): permanently clears setup/test catalog +
+// transactional data. Gated behind the usual confirm modal AND a
+// type-to-confirm prompt (no undo exists on the backend for this one), so
+// it takes two deliberate steps to fire instead of one misclick.
+document.getElementById("resetTransactionalDataBtn")?.addEventListener("click", () => {
+    showConfirm("Reset product & transaction data",
+        "This permanently deletes ALL products, invoices, payments, product ledger entries, stock movements/transfers, purchase & sales returns, stock requests, per-partner pricing and warehouse stock. Admin, Super Stockist and Distributor accounts/profiles are NOT touched. This cannot be undone. Continue?",
+        () => {
+            const typed = window.prompt('This cannot be undone. Type RESET (all caps) to confirm:');
+            if (typed !== "RESET") {
+                showToast("Cancelled", "Data was not reset.", "info");
+                return;
+            }
+            (async () => {
+                showSpinner();
+                try{
+                    const res = await apiRequest(API_BASE + "/admin/reset-transactional-data", { method: "POST" });
+                    showToast("Data reset complete", (res && res.message) || "Data reset successfully.", "success");
+                    await loadAndRenderCrud("products");
+                }catch(err){
+                    showApiError(err, "Could not reset data");
+                }finally{
+                    hideSpinner();
+                }
+            })();
+        });
+});
+
 async function openApproveUserModal(userId, role){
     // The backend auto-creates the matching Distributor/Super Stockist
     // profile from the account's own details when no id is sent (see
