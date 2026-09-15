@@ -1440,11 +1440,15 @@ async function loadAndRenderMrpStock(){
     if (!container) return;
     container.innerHTML = `<p class="text-center text-muted py-4">Loading...</p>`;
     try{
-        const res = await apiRequest(ENDPOINTS.products + "/mrp-wise-stock");
+        const search = document.getElementById("mrpStockSearch")?.value.trim() || "";
+        const params = new URLSearchParams();
+        if (search) params.set("search", search);
+        const qs = params.toString();
+        const res = await apiRequest(ENDPOINTS.products + "/mrp-wise-stock" + (qs ? "?" + qs : ""));
         const data = unwrap(res, { groups: [] });
         const groups = (data && data.groups) || [];
         if (!groups.length){
-            container.innerHTML = `<p class="text-center text-muted py-4">No stock on hand yet.</p>`;
+            container.innerHTML = `<p class="text-center text-muted py-4">${search ? "No products match your search." : "No stock on hand yet."}</p>`;
             return;
         }
         container.innerHTML = groups.map(g => `
@@ -1471,6 +1475,14 @@ async function loadAndRenderMrpStock(){
         container.innerHTML = `<p class="text-center text-danger py-4">Could not load MRP-wise stock.</p>`;
     }
 }
+document.getElementById("mrpStockSearch")?.addEventListener("input", debounce(loadAndRenderMrpStock, 400));
+document.getElementById("mrpStockExportPdf")?.addEventListener("click", () => {
+    const search = document.getElementById("mrpStockSearch")?.value.trim() || "";
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    const qs = params.toString();
+    apiDownloadFile(`${API_BASE}/products/mrp-wise-stock/export/pdf${qs ? "?" + qs : ""}`, "mrp-wise-stock.pdf");
+});
 
 /* ==================== RETURN MANAGEMENT ====================
    One PurchaseReturn row on the backend is BOTH a purchase return (the
@@ -2418,7 +2430,7 @@ const CRUD_CONFIG = {
         stateKey: "products",
         tableBody: "productsTableBody",
         searchInput: "productsSearch",
-        emptyColspan: 11,
+        emptyColspan: 10,
         searchFields: (p, term) => [p.productName, p.barcode, p.productCode, p.batchNumber, p.hsnSacCode].some(v => String(v||"").toLowerCase().includes(term)),
         categoryFilterId: "productsCategoryFilter",
         fields: [
@@ -2469,20 +2481,21 @@ const CRUD_CONFIG = {
         },
         row(p, i){
             const low = p.minimumStock != null ? Number(p.stockQuantity) <= Number(p.minimumStock) : Number(p.stockQuantity) <= 10;
-            // Discount shown here is derived (not a stored field): how much the
-            // selling price is off the product's MRP, for a quick at-a-glance view.
-            const mrpNum = Number(p.mrp) || 0;
-            const spNum = Number(p.sellingPrice) || 0;
-            const discPct = mrpNum > 0 ? Math.max(0, ((mrpNum - spNum) / mrpNum) * 100) : 0;
+            // Discount (MRP vs Selling Price) used to also show as a column
+            // here, but it belongs on the invoice, not the product list --
+            // it's still computed/shown in the Add/Edit Product form and on
+            // invoices, just no longer duplicated in this table.
+            // Fallback to the initials avatar if the uploaded photo 404s
+            // (deleted file, bad URL, etc.) instead of showing a broken image.
+            const imgFallback = avatarUrl(p.productName).replace(/'/g, "%27");
             return `<tr>
         <td>${(i ?? 0) + 1}</td>
         <td>${escapeHtml(p.batchNumber || "—")}</td>
         <td>${escapeHtml(p.hsnSacCode || "—")}</td>
-        <td><div class="avatar-name"><img style="border-radius:10px" src="${p.productImage || avatarUrl(p.productName)}"><span class="fw-600" style="font-size:13.5px">${escapeHtml(p.productName)}</span></div></td>
+        <td><div class="avatar-name"><img style="border-radius:10px" src="${p.productImage || avatarUrl(p.productName)}" onerror="this.onerror=null;this.src='${imgFallback}'"><span class="fw-600" style="font-size:13.5px">${escapeHtml(p.productName)}</span></div></td>
         <td>${escapeHtml(p.categoryName || "—")}</td><td>${escapeHtml(p.barcode || "—")}</td>
         <td>${p.stockQuantity ?? 0} ${low ? '<span class="status-badge status-unpaid ms-1">Low</span>' : ""}</td>
         <td>${formatCurrency(p.sellingPrice)}</td><td>${p.gstPercentage ?? 0}%</td>
-        <td>${discPct > 0 ? discPct.toFixed(1) + "%" : "—"}</td>
         <td class="text-end">
           <button class="action-btn edit" data-action="edit" data-id="${p.id}"><i class="fa-solid fa-pen"></i></button>
           <button class="action-btn" data-action="pricing" data-id="${p.id}" data-name="${escapeHtml(p.productName)}" title="Per-partner pricing"><i class="fa-solid fa-tags"></i></button>

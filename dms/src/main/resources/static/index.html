@@ -1264,6 +1264,12 @@
             <section class="page-section d-none" id="section-mrp-stock">
                 <div class="page-heading">
                     <div><h3>MRP-wise Stock</h3><p>Current on-hand stock grouped by MRP price point.</p></div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" id="mrpStockExportPdf"><i class="fa-solid fa-file-pdf me-1"></i> PDF</button>
+                    </div>
+                </div>
+                <div class="table-toolbar">
+                    <div class="topbar-search sm"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="mrpStockSearch" placeholder="Search product..."></div>
                 </div>
                 <div id="mrpStockGroups"></div>
             </section>
@@ -1408,7 +1414,7 @@
                     </div>
                     <div class="table-responsive">
                         <table class="table brisk-table">
-                            <thead><tr><th>S.No</th><th>Batch No.</th><th>HSN/SAC</th><th>Product</th><th>Category</th><th>Barcode</th><th>Stock</th><th>Price</th><th>Tax</th><th>Discount</th><th class="text-end">Actions</th></tr></thead>
+                            <thead><tr><th>S.No</th><th>Batch No.</th><th>HSN/SAC</th><th>Product</th><th>Category</th><th>Barcode</th><th>Stock</th><th>Price</th><th>Tax</th><th class="text-end">Actions</th></tr></thead>
                             <tbody id="productsTableBody"></tbody>
                         </table>
                     </div>
