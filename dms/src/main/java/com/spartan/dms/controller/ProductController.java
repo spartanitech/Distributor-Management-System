@@ -143,8 +143,21 @@ public class ProductController {
     // server-side in ProductService.getMrpWiseStock(), same as every other
     // stock view in this codebase.
     @GetMapping("/mrp-wise-stock")
-    public ResponseEntity<ApiResponse<com.spartan.dms.dto.MrpWiseStockResponse>> getMrpWiseStock() {
+    public ResponseEntity<ApiResponse<com.spartan.dms.dto.MrpWiseStockResponse>> getMrpWiseStock(
+            @RequestParam(required = false) String search) {
 
-        return ResponseEntity.ok(productService.getMrpWiseStock());
+        return ResponseEntity.ok(productService.getMrpWiseStock(search));
+    }
+
+    // Same scoping and search filter as getMrpWiseStock() above, printed as
+    // a PDF via PdfGenerator (see ProductService.exportMrpWiseStockPdf()).
+    @GetMapping(value = "/mrp-wise-stock/export/pdf", produces = org.springframework.http.MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<byte[]> exportMrpWiseStockPdf(@RequestParam(required = false) String search) {
+
+        byte[] pdf = productService.exportMrpWiseStockPdf(search);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=mrp-wise-stock.pdf")
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .body(pdf);
     }
 }
