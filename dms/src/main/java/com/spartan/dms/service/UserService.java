@@ -37,6 +37,12 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final SecurityUtils securityUtils;
     private final AuditLogService auditLogService;
+    // Only used by deleteUser() below to best-effort clean up the
+    // Distributor/Super Stockist profile a deleted login leaves behind --
+    // neither service depends back on UserService, so this doesn't
+    // introduce a circular bean dependency.
+    private final SuperStockistService superStockistService;
+    private final DistributorService distributorService;
 
     // Writes users AND (auto-provisions) distributors/super_stockists, so
     // both must land or neither -- otherwise a failure partway through
@@ -235,6 +241,17 @@ public class UserService {
                 .build();
     }
 
+    // BUG fix: deleting a DISTRIBUTOR/SUPER_STOCKIST login used to leave its
+    // auto-provisioned business-profile row behind untouched. That orphaned
+    // profile still holds the same mobile number/email, so re-registering
+    // the same person afterwards (via "Add Super Stockist"/"Add
+    // Distributor", or a self-service sign-up) silently failed with
+    // "Mobile Number already exists" / "Email already exists" -- with
+    // nothing in the UI explaining that a profile from the deleted login
+    // was still sitting there. "Delete user" now best-effort removes that
+    // now-unused profile too, so a clean re-create with the same details
+    // works immediately afterwards.
+    @Transactional
     public ApiResponse<String> deleteUser(Long id) {
 
         User user = userRepository.findById(id)
@@ -242,7 +259,34 @@ public class UserService {
 
         guardAgainstLastAdminLockout(user, "delete this account");
 
+        SuperStockist linkedSuperStockist = user.getSuperStockist();
+        Distributor linkedDistributor = user.getDistributor();
+
         userRepository.delete(user);
+        // Flush now so the dependent-data checks inside
+        // deleteSuperStockist()/deleteDistributor() below (which query
+        // existsBySuperStockistId/existsByDistributorId) see this user as
+        // already gone, rather than racing an unflushed pending delete.
+        userRepository.flush();
+
+        // Only removed when it's otherwise unused (no invoices, warehouse,
+        // shops, other linked login, etc.) -- deleteSuperStockist()/
+        // deleteDistributor() enforce the exact same checks used by their
+        // own dedicated delete endpoints, so a profile with real business
+        // history is always left in place, just like before this fix.
+        if (linkedSuperStockist != null) {
+            try {
+                superStockistService.deleteSuperStockist(linkedSuperStockist.getId());
+            } catch (com.spartan.dms.exception.BadRequestException e) {
+                // Has real data attached -- leave the profile as-is.
+            }
+        } else if (linkedDistributor != null) {
+            try {
+                distributorService.deleteDistributor(linkedDistributor.getId());
+            } catch (com.spartan.dms.exception.BadRequestException e) {
+                // Has real data attached -- leave the profile as-is.
+            }
+        }
 
         return ApiResponse.<String>builder()
                 .success(true)
