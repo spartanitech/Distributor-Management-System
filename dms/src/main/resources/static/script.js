@@ -2461,6 +2461,7 @@ const CRUD_CONFIG = {
         emptyColspan: 10,
         searchFields: (p, term) => [p.productName, p.barcode, p.productCode, p.batchNumber, p.hsnSacCode].some(v => String(v||"").toLowerCase().includes(term)),
         categoryFilterId: "productsCategoryFilter",
+        batchFilterId: "productsBatchFilter",
         fields: [
             { key:"productName", label:"Product Name", type:"text", required:true },
             { key:"productCode", label:"Product Code", type:"text", required:true, editHint:"Must be unique" },
@@ -2472,7 +2473,6 @@ const CRUD_CONFIG = {
             { key:"unit", label:"Unit", type:"select", options:["PIECE","BOX","PACK","CARTON","BOTTLE","STRIP","DOZEN","KG","GRASS","LITRE","ML"] },
             { key:"stockQuantity", label:"Stock Quantity", type:"number", required:true, editHint:"Sets only the starting stock when creating a product. Editing an existing product ignores this field — use the Stock In / Adjust Stock action to change stock, since only that path records it in the Product Ledger." },
             { key:"minimumStock", label:"Minimum Stock (low-stock alert)", type:"number" },
-            { key:"purchasePrice", label:"Purchase Price (₹)", type:"number" },
             { key:"ssPrice", label:"SS Price (₹) — Company → Super Stockist rate", type:"number" },
             { key:"distributorPrice", label:"Distributor Price / DP (₹) — Super Stockist → Distributor rate", type:"number" },
             { key:"sellingPrice", label:"Selling Price / SP (₹) — Distributor → Shop rate", type:"number", required:true },
@@ -2497,7 +2497,6 @@ const CRUD_CONFIG = {
                 brandName: values.brandName || null, unit: values.unit || null,
                 stockQuantity: values.stockQuantity !== "" ? Number(values.stockQuantity) : 0,
                 minimumStock: values.minimumStock !== "" ? Number(values.minimumStock) : null,
-                purchasePrice: values.purchasePrice !== "" ? Number(values.purchasePrice) : null,
                 ssPrice: values.ssPrice !== "" ? Number(values.ssPrice) : null,
                 distributorPrice: values.distributorPrice !== "" ? Number(values.distributorPrice) : null,
                 sellingPrice: values.sellingPrice !== "" ? Number(values.sellingPrice) : null,
@@ -2606,6 +2605,8 @@ const CRUD_CONFIG = {
 
 let usersPage = 1;
 const PAGE_SIZE = 5;
+// Products list shows more rows per page than the other paginated tables.
+const PRODUCTS_PAGE_SIZE = 25;
 
 // Products/Distributors tables have real #productsPagination /
 // #distributorsPagination containers already sitting in the DOM (see
@@ -2614,7 +2615,7 @@ const PAGE_SIZE = 5;
 // module name instead of hardcoding "users".
 const PAGINATED_MODULES = {
     users:        { containerId: "usersPagination",        pageSize: PAGE_SIZE },
-    products:     { containerId: "productsPagination",     pageSize: PAGE_SIZE },
+    products:     { containerId: "productsPagination",     pageSize: PRODUCTS_PAGE_SIZE },
     distributors: { containerId: "distributorsPagination", pageSize: PAGE_SIZE },
 };
 const crudModulePage = { users: 1, products: 1, distributors: 1 };
@@ -2664,6 +2665,10 @@ function renderCrudTable(moduleName, page = 1){
     if (cfg.categoryFilterId){
         const val = document.getElementById(cfg.categoryFilterId)?.value;
         if (val) rows = rows.filter(item => String(item.categoryId ?? "") === val);
+    }
+    if (cfg.batchFilterId){
+        const val = document.getElementById(cfg.batchFilterId)?.value;
+        if (val) rows = rows.filter(item => String(item.batchNumber ?? "") === val);
     }
     if (cfg.areaFilterId){
         const val = document.getElementById(cfg.areaFilterId)?.value;
@@ -3028,6 +3033,7 @@ document.getElementById("addShopBtn").addEventListener("click", () => {
 });
 document.getElementById("usersStatusFilter").addEventListener("change", () => renderCrudTable("users", 1));
 document.getElementById("productsCategoryFilter").addEventListener("change", () => renderCrudTable("products"));
+document.getElementById("productsBatchFilter").addEventListener("change", () => renderCrudTable("products"));
 document.getElementById("distributorsAreaFilter").addEventListener("change", () => renderCrudTable("distributors"));
 document.getElementById("distributorsDistrictFilter").addEventListener("change", () => renderCrudTable("distributors"));
 document.getElementById("distributorsStatusFilter").addEventListener("change", () => renderCrudTable("distributors"));
@@ -3078,6 +3084,19 @@ function populateFilterDropdowns(){
     // under a stale selection) would leave the select showing blank while
     // still filtering -- reset to "All" so the table matches the control.
     if (catSelect.value !== prevCat) catSelect.value = "";
+
+    // Batch filter — distinct batch numbers actually present on products,
+    // sorted "numeric-aware" so 1,2,10 order correctly instead of 1,10,2.
+    const batchSelect = document.getElementById("productsBatchFilter");
+    if (batchSelect){
+        const prevBatch = batchSelect.value;
+        const batches = [...new Set(STATE.products.map(p => p.batchNumber).filter(Boolean))]
+            .sort((a,b) => String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" }));
+        batchSelect.innerHTML = `<option value="">All Batches</option>` +
+            batches.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join("");
+        batchSelect.value = prevBatch;
+        if (batchSelect.value !== prevBatch) batchSelect.value = "";
+    }
 
     const stockCatSelect = document.getElementById("stockSummaryCategoryFilter");
     if (stockCatSelect){
