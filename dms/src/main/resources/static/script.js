@@ -3092,7 +3092,7 @@ function populateFilterDropdowns(){
         const prevBatch = batchSelect.value;
         const batches = [...new Set(STATE.products.map(p => p.batchNumber).filter(Boolean))]
             .sort((a,b) => String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" }));
-        batchSelect.innerHTML = `<option value="">Batch</option>` +
+        batchSelect.innerHTML = `<option value="">All Batches</option>` +
             batches.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join("");
         batchSelect.value = prevBatch;
         if (batchSelect.value !== prevBatch) batchSelect.value = "";
