@@ -61,7 +61,7 @@ public class ProductRequest {
     @jakarta.validation.constraints.DecimalMin(value = "0", message = "Minimum stock cannot be negative")
     private Integer minimumStock;
 
-    @NotNull(message = "Purchase price is required")
+  
     @DecimalMin(value = "0", inclusive = true, message = "Purchase price cannot be negative")
     private BigDecimal purchasePrice;
 
