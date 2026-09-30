@@ -20,8 +20,14 @@ public class RegisterRequest {
     private String username;
 
     @Email(message = "Invalid Email")
-    @NotBlank(message = "Email is required")
     private String email;
+
+    // Email is optional -- most distributors/shops don't have one. Blank
+    // input is stored as NULL so the UNIQUE email column doesn't reject the
+    // second record that leaves it empty ("" == "" but NULL != NULL).
+    public void setEmail(String email) {
+        this.email = (email == null || email.isBlank()) ? null : email.trim();
+    }
 
     @NotBlank(message = "Phone number is required")
     private String phone;
