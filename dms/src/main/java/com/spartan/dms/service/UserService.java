@@ -54,7 +54,7 @@ public class UserService {
             throw new DuplicateResourceException("Username already exists");
         }
 
-        if (userRepository.existsByEmail(request.getEmail())) {
+        if (request.getEmail() != null && userRepository.existsByEmail(request.getEmail())) {
             throw new DuplicateResourceException("Email already exists");
         }
 

@@ -109,7 +109,7 @@ public class AuthService {
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new DuplicateResourceException(REGISTRATION_FAILED_MESSAGE);
         }
-        if (userRepository.existsByEmail(request.getEmail())) {
+        if (request.getEmail() != null && userRepository.existsByEmail(request.getEmail())) {
             throw new DuplicateResourceException(REGISTRATION_FAILED_MESSAGE);
         }
         if (userRepository.existsByMobileNumber(request.getPhone())) {

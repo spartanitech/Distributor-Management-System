@@ -208,6 +208,15 @@ public class InvoiceService {
             invoice.setTaxAmount(clientSuppliedTax != null ? clientSuppliedTax : BigDecimal.ZERO);
         }
 
+        // Round the grand total to the nearest rupee (.50 and above -> up,
+        // below .50 -> down) and keep the difference as roundOff, so
+        // balance/payments/outstanding all work on the whole-rupee amount
+        // printed on the invoice.
+        BigDecimal rawTotal = invoice.getTotalAmount() != null ? invoice.getTotalAmount() : BigDecimal.ZERO;
+        BigDecimal roundedTotal = rawTotal.setScale(0, java.math.RoundingMode.HALF_UP).setScale(2);
+        invoice.setRoundOff(roundedTotal.subtract(rawTotal).setScale(2, java.math.RoundingMode.HALF_UP));
+        invoice.setTotalAmount(roundedTotal);
+
         // paidAmount is still 0 and returnedAmount is still 0 from above —
         // this always resolves to balanceAmount = totalAmount, status = UNPAID.
         invoice.recalculateBalanceAndStatus();
@@ -756,6 +765,7 @@ public class InvoiceService {
         BigDecimal preSubTotal = invoice.getSubTotal();
         BigDecimal preTax = invoice.getTaxAmount();
         BigDecimal preTotal = invoice.getTotalAmount();
+        BigDecimal preRoundOff = invoice.getRoundOff();
         BigDecimal prePaid = invoice.getPaidAmount();
         BigDecimal preReturned = invoice.getReturnedAmount();
         BigDecimal preBalance = invoice.getBalanceAmount();
@@ -766,6 +776,7 @@ public class InvoiceService {
         invoice.setSubTotal(preSubTotal);
         invoice.setTaxAmount(preTax);
         invoice.setTotalAmount(preTotal);
+        invoice.setRoundOff(preRoundOff);
         invoice.setPaidAmount(prePaid);
         invoice.setReturnedAmount(preReturned);
         invoice.setBalanceAmount(preBalance);
@@ -1004,9 +1015,18 @@ public class InvoiceService {
         BigDecimal taxAmount = invoice.getTaxAmount() != null ? invoice.getTaxAmount() : BigDecimal.ZERO;
         BigDecimal cgst = taxAmount.divide(BigDecimal.valueOf(2), 2, java.math.RoundingMode.HALF_UP);
         BigDecimal sgst = taxAmount.subtract(cgst);
-        BigDecimal rawTotal = invoice.getTotalAmount() != null ? invoice.getTotalAmount() : BigDecimal.ZERO;
-        BigDecimal roundedTotal = rawTotal.setScale(0, java.math.RoundingMode.HALF_UP);
-        BigDecimal roundOff = roundedTotal.subtract(rawTotal);
+        BigDecimal storedTotal = invoice.getTotalAmount() != null ? invoice.getTotalAmount() : BigDecimal.ZERO;
+        BigDecimal roundedTotal;
+        BigDecimal roundOff;
+        if (invoice.getRoundOff() != null) {
+            // New invoices: totalAmount is already rounded at creation.
+            roundedTotal = storedTotal;
+            roundOff = invoice.getRoundOff();
+        } else {
+            // Older invoices saved before round-off existed.
+            roundedTotal = storedTotal.setScale(0, java.math.RoundingMode.HALF_UP);
+            roundOff = roundedTotal.subtract(storedTotal);
+        }
 
         return pdfGenerator.generateTaxInvoicePdf(
                 invoice.getInvoiceNumber(),
