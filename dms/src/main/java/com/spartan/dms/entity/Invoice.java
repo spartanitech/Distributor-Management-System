@@ -85,6 +85,13 @@ public class Invoice extends BaseEntity {
     @Column(name = "total_amount", precision = 12, scale = 2)
     private BigDecimal totalAmount;
 
+    // Difference between the rounded grand total (totalAmount) and the raw
+    // item total: .50 and above rounds UP to the next rupee, below .50
+    // rounds DOWN. e.g. 149.42 -> 149.00 (roundOff -0.42), 149.50 -> 150.00
+    // (roundOff +0.50). NULL on invoices created before round-off existed.
+    @Column(name = "round_off", precision = 12, scale = 2)
+    private BigDecimal roundOff;
+
     @Column(name = "paid_amount", precision = 12, scale = 2)
     private BigDecimal paidAmount;
 

@@ -45,6 +45,8 @@ public class InvoiceResponse {
 
     private BigDecimal totalAmount;
 
+    private BigDecimal roundOff;
+
     private BigDecimal paidAmount;
 
     private BigDecimal balanceAmount;

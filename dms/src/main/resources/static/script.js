@@ -2333,7 +2333,7 @@ const CRUD_CONFIG = {
         fields: [
             { key:"fullName", label:"Full Name", type:"text", required:true },
             { key:"username", label:"Username", type:"text", required:true },
-            { key:"email", label:"Email", type:"email", required:true },
+            { key:"email", label:"Email (optional)", type:"email" },
             { key:"mobileNumber", label:"Mobile Number", type:"text", required:true, placeholder:"10-digit number starting 6-9" },
             { key:"password", label:"Password", type:"password", required:true, editHint:"Leave blank to keep the current password" },
             { key:"roleId", label:"Role ID", type:"number", required:true, editHint:"Numeric ID from the roles table (the backend has no endpoint to list roles by name)" },
@@ -2604,7 +2604,7 @@ const CRUD_CONFIG = {
 };
 
 let usersPage = 1;
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 25;
 // Products list shows more rows per page than the other paginated tables.
 const PRODUCTS_PAGE_SIZE = 25;
 
@@ -2898,7 +2898,7 @@ function setupProductImageSection(moduleName, id, item){
 function openCrudModal(moduleName, id = null){
     const cfg = CRUD_CONFIG[moduleName];
     const item = id ? STATE[cfg.stateKey].find(x => x.id == id) : {};
-    document.getElementById("crudModalTitle").textContent = (id ? "Edit " : "Add ") + moduleName.slice(0,1).toUpperCase() + moduleName.slice(1,-1);
+    document.getElementById("crudModalTitle").textContent = (id ? "Edit " : "Add ") + moduleName.slice(0,1).toUpperCase() + (moduleName.endsWith("ies") ? moduleName.slice(1,-3) + "y" : moduleName.slice(1,-1));
 
     const fieldsHtml = cfg.fields.map(f => {
         // categoryId/distributorId aren't present on *Response DTOs for edit
@@ -3485,7 +3485,7 @@ function renderCharts(summary){
                 tension:0.4, pointBackgroundColor:"#74AFEF", pointRadius:4, borderWidth:3
             }]},
         options:{ plugins:{ legend:{ display:false } },
-            scales:{ y:{ grid:{ color:"rgba(17,24,39,0.05)" }, ticks:{ callback:v=>"₹"+(v/1000)+"k" } }, x:{ grid:{ display:false } } } }
+            scales:{ y:{ beginAtZero:true, suggestedMax:1000, grid:{ color:"rgba(17,24,39,0.05)" }, ticks:{ callback:v=>"₹"+(v/1000)+"k" } }, x:{ grid:{ display:false } } } }
     });
 
     const categories = summary.categorySales || [];
@@ -3578,7 +3578,7 @@ function buildBreakdownBarChart(canvasId, existingInstance, rows, onBarClick){
         },
         options: {
             plugins: { legend: { display: false } },
-            scales: { y: { grid: { color: "rgba(17,24,39,0.05)" }, ticks: { callback: v => "₹" + (v/1000) + "k" } }, x: { grid: { display: false } } },
+            scales: { y: { beginAtZero: true, suggestedMax: 1000, grid: { color: "rgba(17,24,39,0.05)" }, ticks: { callback: v => "₹" + (v/1000) + "k" } }, x: { grid: { display: false } } },
             onClick: (evt, elements) => {
                 if (!elements.length) return;
                 const idx = elements[0].index;
@@ -4031,14 +4031,20 @@ function computeInvoiceTotals(){
         const lineBase = i.qty*i.price - (i.qty*i.price*(i.discPct||0)/100);
         return s + (lineBase * i.tax/100);
     },0);
-    const grand = sub - discountAmt + gst;
-    return { sub, gst, discountAmt, grand };
+    // Round Off: .50 and above -> next rupee, below .50 -> drop the paise
+    // (same HALF_UP rule the backend applies when saving the invoice).
+    const rawGrand = Math.round((sub - discountAmt + gst) * 100) / 100;
+    const grand = Math.round(rawGrand);
+    const roundOff = Math.round((grand - rawGrand) * 100) / 100;
+    return { sub, gst, discountAmt, rawGrand, roundOff, grand };
 }
 
 function recalcInvoiceTotals(){
     const t = computeInvoiceTotals();
     document.getElementById("invSubtotal").textContent = formatCurrency(t.sub);
     document.getElementById("invGst").textContent = formatCurrency(t.gst);
+    document.getElementById("invRoundOffLabel").textContent = t.roundOff < 0 ? "Less: Round Off" : "Add: Round Off";
+    document.getElementById("invRoundOff").textContent = (t.roundOff < 0 ? "- " : "+ ") + formatCurrency(Math.abs(t.roundOff));
     document.getElementById("invGrandTotal").textContent = formatCurrency(t.grand);
 }
 
@@ -4329,9 +4335,12 @@ async function openInvoicePreview(inv){
     // when rounding down, same convention as the paper invoice. ----
     const taxable = Number(inv.subTotal || 0) - Number(inv.discountAmount || 0);
     const halfTax = Number(inv.taxAmount || 0) / 2;
+    // New invoices store an already-rounded totalAmount plus roundOff;
+    // older ones stored the raw total, so round it here for display.
+    const hasStoredRoundOff = inv.roundOff !== null && inv.roundOff !== undefined;
     const rawTotal = Number(inv.totalAmount || 0);
-    const roundedTotal = Math.round(rawTotal);
-    const roundOff = roundedTotal - rawTotal;
+    const roundedTotal = hasStoredRoundOff ? rawTotal : Math.round(rawTotal);
+    const roundOff = hasStoredRoundOff ? Number(inv.roundOff) : roundedTotal - rawTotal;
     document.getElementById("pvSubtotal").textContent = formatCurrency(inv.subTotal);
     document.getElementById("pvDiscount").textContent = formatCurrency(inv.discountAmount);
     document.getElementById("pvTaxable").textContent = formatCurrency(taxable);
@@ -5210,6 +5219,11 @@ document.getElementById("generateReportBtn").addEventListener("click", async () 
     const type = document.getElementById("reportType").value;
     if (type === "ledger" && !document.getElementById("reportLedgerAccount").value){
         showToast("Select an account", "Choose a shop to generate its ledger.", "warning");
+        // Clear the previous report so its table isn't mistaken for the ledger.
+        currentReport = null;
+        document.getElementById("reportTitle").textContent = REPORT_TITLES[type] || "Account Ledger";
+        document.getElementById("reportTableHead").innerHTML = "";
+        document.getElementById("reportTableBody").innerHTML = `<tr><td class="text-center text-muted py-4">Select a shop and click Generate.</td></tr>`;
         return;
     }
 

@@ -76,7 +76,7 @@ public class OutstandingReportService {
             }
         }
 
-        if (unpaid.isEmpty()) return List.of();
+        if (unpaid.isEmpty()) return new ArrayList<>(); // mutable: filterAndSort() calls sort() on it
 
         List<Long> invoiceIds = unpaid.stream().map(Invoice::getId).collect(Collectors.toList());
         Map<Long, LinkedHashSet<String>> productsByInvoice = new LinkedHashMap<>();
